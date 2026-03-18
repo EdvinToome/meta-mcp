@@ -7,6 +7,7 @@ import {
   TroubleshootCreativeSchema,
   AnalyzeCreativesSchema,
   CreativeValidationEnhancedSchema,
+  UploadCreativeAssetSchema,
   UploadImageFromUrlSchema,
 } from "../types/mcp-tools";
 
@@ -210,7 +211,6 @@ export function registerCreativeTools(
               type: call_to_action_type,
               value: {
                 link: link_url,
-                link_format: "WEBSITE_LINK",
               },
             };
           }
@@ -235,7 +235,6 @@ export function registerCreativeTools(
               type: call_to_action_type,
               value: {
                 link: link_url,
-                link_format: "WEBSITE_LINK",
               },
             };
           }
@@ -709,37 +708,63 @@ export function registerCreativeTools(
     }
   );
 
-  // Upload Creative Asset Tool (simplified - would need actual file upload)
+  // Upload Creative Asset Tool
   server.tool(
     "upload_creative_asset",
-    "Get guidance on uploading creative assets (images/videos) to Meta. Provides step-by-step instructions and technical requirements for asset uploads.",
-    CreateAdCreativeSchema.shape,
-    async ({ account_id, name }) => {
+    "Upload a local image file to Meta and return the image_hash needed for create_ad_creative.",
+    UploadCreativeAssetSchema.shape,
+    async ({ account_id, file_path, image_name }) => {
       try {
-        const response = {
-          message: "Creative asset upload process",
+        if (!account_id.startsWith("act_")) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: Account ID must include "act_" prefix. Use "act_${account_id}" instead.`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const uploadResult = await metaClient.uploadImageFromFile(
           account_id,
-          asset_name: name,
-          upload_steps: [
-            "1. Use Meta Business Manager to upload images/videos",
-            "2. Get the asset URL or video ID",
-            "3. Use create_ad_creative with the asset URL/ID",
-            "4. Preview the creative before using in ads",
-          ],
-          supported_formats: {
-            images: ["JPG", "PNG", "GIF"],
-            videos: ["MP4", "MOV", "AVI"],
-            requirements: {
-              image_max_size: "30MB",
-              video_max_size: "4GB",
-              image_min_resolution: "600x600px",
-              video_min_resolution: "720p",
+          file_path,
+          image_name
+        );
+
+        const response = {
+          success: true,
+          message: "Local creative asset uploaded successfully to Meta",
+          api_version: "v23.0",
+          upload_details: {
+            account_id,
+            file_path,
+            uploaded_name: uploadResult.name,
+            image_hash: uploadResult.hash,
+            meta_url: uploadResult.url,
+          },
+          usage_examples: {
+            single_image_ads: {
+              description: "Use the returned hash in create_ad_creative",
+              example: {
+                account_id,
+                name: "My Creative",
+                page_id: "YOUR_PAGE_ID",
+                image_hash: uploadResult.hash,
+                message: "Your ad text",
+                headline: "Your headline",
+                link_url: "https://your-website.com",
+                call_to_action_type: "SHOP_NOW",
+              },
             },
           },
-          api_endpoints: {
-            image_upload: "Use Graph API /adimages endpoint",
-            video_upload: "Use Graph API /advideos endpoint",
-          },
+          next_steps: [
+            `Use the image_hash "${uploadResult.hash}" in create_ad_creative`,
+            "The image is now stored in your Meta ad account library",
+            "Test the creative with validate_creative_enhanced",
+            "Create your ad creative using the hash instead of an external URL",
+          ],
         };
 
         return {
@@ -757,7 +782,7 @@ export function registerCreativeTools(
           content: [
             {
               type: "text",
-              text: `Error with asset upload process: ${errorMessage}`,
+              text: `Error uploading creative asset: ${errorMessage}`,
             },
           ],
           isError: true,

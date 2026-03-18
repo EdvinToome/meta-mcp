@@ -624,7 +624,18 @@ export const RefreshTokenSchema = z.object({
     .optional()
     .describe(
       "Short-lived token to exchange (optional, uses current if not provided)"
-    ),
+  ),
+});
+
+export const CreateAdSchema = z.object({
+  ad_set_id: z.string().describe("Ad set ID where this ad will be created"),
+  name: z.string().min(1).describe("Ad name"),
+  creative_id: z.string().describe("Existing creative ID to attach to the ad"),
+  status: z
+    .enum(["ACTIVE", "PAUSED"])
+    .optional()
+    .default("PAUSED")
+    .describe("Initial ad status"),
 });
 
 export const GenerateSystemTokenSchema = z.object({
@@ -959,6 +970,15 @@ export const UploadImageFromUrlSchema = z.object({
     .describe("Optional custom name for the uploaded image"),
 });
 
+export const UploadCreativeAssetSchema = z.object({
+  account_id: z.string().describe("Meta Ad Account ID (with act_ prefix)"),
+  file_path: z.string().describe("Absolute local file path to the image asset"),
+  image_name: z
+    .string()
+    .optional()
+    .describe("Optional custom name for the uploaded image"),
+});
+
 // Type exports for runtime use
 export type ListCampaignsParams = z.infer<typeof ListCampaignsSchema>;
 export type CreateCampaignParams = z.infer<typeof CreateCampaignSchema>;
@@ -966,6 +986,7 @@ export type UpdateCampaignParams = z.infer<typeof UpdateCampaignSchema>;
 export type DeleteCampaignParams = z.infer<typeof DeleteCampaignSchema>;
 export type ListAdSetsParams = z.infer<typeof ListAdSetsSchema>;
 export type CreateAdSetParams = z.infer<typeof CreateAdSetSchema>;
+export type CreateAdParams = z.infer<typeof CreateAdSchema>;
 export type GetInsightsParams = z.infer<typeof GetInsightsSchema>;
 export type ComparePerformanceParams = z.infer<typeof ComparePerformanceSchema>;
 export type ExportInsightsParams = z.infer<typeof ExportInsightsSchema>;
@@ -996,3 +1017,6 @@ export type CreativeValidationEnhancedParams = z.infer<
   typeof CreativeValidationEnhancedSchema
 >;
 export type UploadImageFromUrlParams = z.infer<typeof UploadImageFromUrlSchema>;
+export type UploadCreativeAssetParams = z.infer<
+  typeof UploadCreativeAssetSchema
+>;

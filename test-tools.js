@@ -78,7 +78,7 @@ async function testTools() {
 
     // Exact count from source files (verified by grep)
     const toolCounts = {
-      campaigns: 15, // from campaigns.ts
+      campaigns: 16, // from campaigns.ts
       analytics: 5, // from analytics.ts
       audiences: 7, // from audiences.ts
       creatives: 16, // from creatives.ts

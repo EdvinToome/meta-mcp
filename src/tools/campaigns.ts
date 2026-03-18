@@ -7,6 +7,7 @@ import {
   DeleteCampaignSchema,
   ListAdSetsSchema,
   CreateAdSetSchema,
+  CreateAdSchema,
 } from "../types/mcp-tools";
 
 export function setupCampaignTools(
@@ -605,18 +606,6 @@ export function registerCampaignTools(
           };
         }
 
-        if (!daily_budget && !lifetime_budget) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: "Error: Either daily_budget or lifetime_budget must be provided.",
-              },
-            ],
-            isError: true,
-          };
-        }
-
         // Validate optimization_goal and billing_event combination
         const validCombinations = [
           { optimization_goal: "LINK_CLICKS", billing_event: "IMPRESSIONS" },
@@ -636,6 +625,10 @@ export function registerCampaignTools(
           { optimization_goal: "VIDEO_VIEWS", billing_event: "IMPRESSIONS" },
           { optimization_goal: "VIDEO_VIEWS", billing_event: "VIDEO_VIEWS" },
           { optimization_goal: "CONVERSIONS", billing_event: "IMPRESSIONS" },
+          {
+            optimization_goal: "OFFSITE_CONVERSIONS",
+            billing_event: "IMPRESSIONS",
+          },
           { optimization_goal: "APP_INSTALLS", billing_event: "IMPRESSIONS" },
         ];
 
@@ -658,7 +651,8 @@ export function registerCampaignTools(
                   `- LINK_CLICKS + IMPRESSIONS\n` +
                   `- LANDING_PAGE_VIEWS + IMPRESSIONS\n` +
                   `- REACH + IMPRESSIONS\n` +
-                  `- CONVERSIONS + IMPRESSIONS`,
+                  `- CONVERSIONS + IMPRESSIONS\n` +
+                  `- OFFSITE_CONVERSIONS + IMPRESSIONS`,
               },
             ],
             isError: true,
@@ -705,7 +699,7 @@ export function registerCampaignTools(
           status: status || "PAUSED",
         };
 
-        // Add budgets
+        // Add budgets when using ad set budget mode.
         if (daily_budget) {
           adSetData.daily_budget = formatBudget(daily_budget);
         }
@@ -740,6 +734,35 @@ export function registerCampaignTools(
               {
                 type: "text",
                 text: `Error: Unable to fetch campaign details for campaign_id ${campaign_id}. Please verify the campaign exists and you have permission to access it.`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const campaignHasBudget =
+          campaign.daily_budget !== undefined || campaign.lifetime_budget !== undefined;
+
+        if (!daily_budget && !lifetime_budget && !campaignHasBudget) {
+          return {
+            content: [
+              {
+                type: "text",
+                text:
+                  "Error: Provide daily_budget or lifetime_budget, unless the parent campaign already has a campaign budget.",
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if ((daily_budget || lifetime_budget) && campaignHasBudget) {
+          return {
+            content: [
+              {
+                type: "text",
+                text:
+                  "Error: This campaign already has a campaign budget, so the ad set must not include daily_budget or lifetime_budget.",
               },
             ],
             isError: true,
@@ -1044,6 +1067,59 @@ export function registerCampaignTools(
             {
               type: "text",
               text: `Error listing ads: ${errorMessage}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // Create Ad Tool
+  server.tool(
+    "create_ad",
+    "Create a new ad within an ad set by attaching an existing creative ID. Use this after create_ad_creative to complete the delivery object.",
+    CreateAdSchema.shape,
+    async ({ ad_set_id, name, creative_id, status }) => {
+      try {
+        const adData = {
+          name,
+          adset_id: ad_set_id,
+          creative: { creative_id },
+          status: status || "PAUSED",
+        };
+
+        const ad = await metaClient.createAd(ad_set_id, adData);
+
+        const response = {
+          success: true,
+          ad_id: ad.id,
+          message: `Ad "${name}" created successfully`,
+          details: {
+            id: ad.id,
+            name: ad.name ?? name,
+            ad_set_id,
+            creative_id,
+            status: ad.status ?? (status || "PAUSED"),
+          },
+        };
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(response, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error occurred";
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error creating ad: ${errorMessage}`,
             },
           ],
           isError: true,

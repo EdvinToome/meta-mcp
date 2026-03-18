@@ -1,4 +1,6 @@
 import fetch from "node-fetch";
+import { readFile } from "node:fs/promises";
+import { basename, extname } from "node:path";
 import { AuthManager } from "./utils/auth.js";
 import { globalRateLimiter } from "./utils/rate-limiter.js";
 import {
@@ -602,6 +604,12 @@ export class MetaApiClient {
     );
   }
 
+  async getAdSet(adSetId: string): Promise<AdSet> {
+    return this.makeRequest<AdSet>(
+      `${adSetId}?fields=id,name,campaign_id,status,effective_status,created_time,updated_time,start_time,end_time,daily_budget,lifetime_budget,bid_amount,billing_event,optimization_goal`
+    );
+  }
+
   // Ad Management
   async createAd(
     adSetId: string,
@@ -616,16 +624,27 @@ export class MetaApiClient {
     this.debug("Ad Set ID:", adSetId);
     this.debug("Ad Data:", JSON.stringify(adData, null, 2));
 
+    const adSet = await this.getAdSet(adSetId);
+    const campaign = await this.getCampaign(adSet.campaign_id);
+    const accountId = campaign.account_id;
+
+    if (!accountId) {
+      throw new Error("Unable to determine account ID from ad set");
+    }
+
+    const formattedAccountId = this.auth.getAccountId(accountId);
     const body = this.buildQueryString(adData);
     this.debug("Request body:", body);
-    this.debug("API endpoint:", `${adSetId}/ads`);
+    this.debug("Resolved campaign ID:", adSet.campaign_id);
+    this.debug("Resolved account ID:", accountId);
+    this.debug("API endpoint:", `${formattedAccountId}/ads`);
 
     try {
       const result = await this.makeRequest<Ad>(
-        `${adSetId}/ads`,
+        `${formattedAccountId}/ads`,
         "POST",
         body,
-        undefined, // Don't pass account ID for rate limiting since we don't have it
+        formattedAccountId,
         true
       );
 
@@ -904,6 +923,75 @@ export class MetaApiClient {
   }
 
   // Image Upload for v23.0 compliance
+  async uploadImageFromFile(
+    accountId: string,
+    filePath: string,
+    imageName?: string
+  ): Promise<{ hash: string; url: string; name: string }> {
+    try {
+      const formattedAccountId = this.auth.getAccountId(accountId);
+      const fileBuffer = await readFile(filePath);
+      const extension = extname(filePath).toLowerCase();
+      const contentType =
+        extension === ".png"
+          ? "image/png"
+          : extension === ".gif"
+            ? "image/gif"
+            : extension === ".webp"
+              ? "image/webp"
+              : "image/jpeg";
+      const filename = imageName || basename(filePath);
+
+      this.debug("=== IMAGE UPLOAD FROM FILE DEBUG ===");
+      this.debug("Account ID:", formattedAccountId);
+      this.debug("File Path:", filePath);
+      this.debug("Image Name:", filename);
+
+      const imageBlob = new Blob([fileBuffer], { type: contentType });
+      const formData = new FormData();
+      formData.append("filename", imageBlob, filename);
+      formData.append("access_token", this.auth.getAccessToken());
+
+      const uploadResponse = await fetch(
+        `https://graph.facebook.com/v23.0/${formattedAccountId}/adimages`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const uploadResult = (await uploadResponse.json()) as any;
+      this.debug("Upload response:", JSON.stringify(uploadResult, null, 2));
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Image upload failed: ${JSON.stringify(uploadResult)}`);
+      }
+
+      const images = uploadResult.images;
+      if (!images || Object.keys(images).length === 0) {
+        throw new Error("No image hash returned from Meta API");
+      }
+
+      const imageKey = Object.keys(images)[0];
+      const imageResult = images[imageKey];
+
+      if (!imageResult.hash) {
+        throw new Error("No hash found in image upload response");
+      }
+
+      return {
+        hash: imageResult.hash,
+        url: imageResult.url || "",
+        name: filename,
+      };
+    } catch (error) {
+      this.debug("=== IMAGE FILE UPLOAD ERROR ===");
+      this.debug("Error:", error);
+      this.debug("================================");
+      throw error;
+    }
+  }
+
   async uploadImageFromUrl(
     accountId: string,
     imageUrl: string,
