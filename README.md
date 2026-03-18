@@ -6,7 +6,7 @@ A comprehensive Model Context Protocol (MCP) server that enables AI assistants l
 
 ### 1) Install
 ```bash
-npm install -g meta-ads-mcp
+npm install -g @edvintoome/meta-mcp
 ```
 
 ### 2) Configure (Claude Desktop / Cursor)
@@ -21,7 +21,7 @@ Minimal config:
   "mcpServers": {
     "meta-ads": {
       "command": "npx",
-      "args": ["-y", "meta-ads-mcp"],
+      "args": ["-y", "@edvintoome/meta-mcp"],
       "env": {
         "META_ACCESS_TOKEN": "your_access_token_here"
       }
@@ -36,7 +36,7 @@ If your app requires `appsecret_proof`, add `META_APP_SECRET`:
   "mcpServers": {
     "meta-ads": {
       "command": "npx",
-      "args": ["-y", "meta-ads-mcp"],
+      "args": ["-y", "@edvintoome/meta-mcp"],
       "env": {
         "META_ACCESS_TOKEN": "your_access_token_here",
         "META_APP_SECRET": "your_app_secret"
@@ -51,9 +51,7 @@ If your app requires `appsecret_proof`, add `META_APP_SECRET`:
 - **Cursor**: restart the IDE
 
 ### 4) Verify
-```bash
-npm run health-check
-```
+Restart your MCP client, then call the `health_check` tool from the client.
 
 ## 🚀 Features
 
@@ -96,13 +94,13 @@ npm run health-check
 
 ### Option 1: Direct Installation (Recommended)
 ```bash
-npm install -g meta-ads-mcp
+npm install -g @edvintoome/meta-mcp
 ```
 
 ### Option 2: From Source
 ```bash
-git clone https://github.com/wipsoft/meta-mcp.git
-cd meta-ads-mcp
+git clone https://github.com/EdvinToome/meta-mcp.git
+cd meta-mcp
 npm install
 npm run build
 ```
@@ -110,8 +108,8 @@ npm run build
 ### Option 3: Automated Setup (Easiest)
 ```bash
 # Clone the repository first
-git clone https://github.com/wipsoft/meta-mcp.git
-cd meta-ads-mcp
+git clone https://github.com/EdvinToome/meta-mcp.git
+cd meta-mcp
 
 # Run the interactive setup
 npm run setup
@@ -150,7 +148,7 @@ If the file doesn't exist, create it with the following content:
   "mcpServers": {
     "meta-ads": {
       "command": "npx",
-      "args": ["-y", "meta-ads-mcp"],
+      "args": ["-y", "@edvintoome/meta-mcp"],
       "env": {
         "META_ACCESS_TOKEN": "your_access_token_here"
       }
@@ -165,7 +163,7 @@ If the file doesn't exist, create it with the following content:
   "mcpServers": {
     "meta-ads": {
       "command": "npx",
-      "args": ["-y", "meta-ads-mcp"],
+      "args": ["-y", "@edvintoome/meta-mcp"],
       "env": {
         "META_ACCESS_TOKEN": "your_access_token_here",
         "META_APP_ID": "your_app_id",
@@ -185,7 +183,7 @@ If you've cloned the repository locally:
   "mcpServers": {
     "meta-ads": {
       "command": "node",
-      "args": ["/absolute/path/to/meta-ads-mcp/build/index.js"],
+      "args": ["/absolute/path/to/meta-mcp/build/index.js"],
       "env": {
         "META_ACCESS_TOKEN": "your_access_token_here"
       }
@@ -208,8 +206,7 @@ Cursor uses the same MCP configuration as Claude Desktop. Add the configuration 
 
 ### Step 5: Verify Setup
 ```bash
-# Run health check to verify everything is working
-npm run health-check
+# Verify from your MCP client by calling the health_check tool
 ```
 
 ## 🔍 Troubleshooting
@@ -264,7 +261,7 @@ type "%APPDATA%\Claude\logs\mcp*.log"
 #### 5. Test the server manually
 ```bash
 # Test the MCP server directly
-npx -y meta-ads-mcp
+npx -y @edvintoome/meta-mcp
 
 # Or if installed locally
 node build/index.js
@@ -277,7 +274,7 @@ Enable debug logging by adding to your environment:
   "mcpServers": {
     "meta-ads": {
       "command": "npx",
-      "args": ["-y", "meta-ads-mcp"],
+      "args": ["-y", "@edvintoome/meta-mcp"],
       "env": {
         "META_ACCESS_TOKEN": "your_access_token_here",
         "META_MCP_DEBUG": "1",

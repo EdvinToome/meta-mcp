@@ -1,14 +1,14 @@
 {
-  "name": "meta-ads-mcp",
-  "version": "1.7.0",
+  "name": "@edvintoome/meta-mcp",
+  "version": "1.7.1",
   "description": "Model Context Protocol server for Meta Marketing API integration",
   "main": "build/index.js",
   "type": "module",
   "bin": {
-    "meta-ads-mcp": "build/index.js"
+    "meta-mcp": "build/index.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsup",
     "dev": "tsx src/index.ts",
     "dev:vercel": "vercel dev",
     "test": "jest",
@@ -23,8 +23,25 @@
     "health-check": "node scripts/health-check.js",
     "check": "node scripts/health-check.js"
   },
-  "author": "Meta Ads MCP",
+  "author": "Edvin Toome",
   "license": "MIT",
+  "files": [
+    "build",
+    "README.md",
+    "LICENSE",
+    "scripts"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EdvinToome/meta-mcp.git"
+  },
+  "homepage": "https://github.com/EdvinToome/meta-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/EdvinToome/meta-mcp/issues"
+  },
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -52,6 +69,7 @@
     "@typescript-eslint/parser": "^8.52.0",
     "eslint": "^9.39.2",
     "jest": "^29.7.0",
+    "tsup": "^8.5.0",
     "ts-jest": "^29.4.6",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"

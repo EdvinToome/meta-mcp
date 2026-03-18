@@ -213,8 +213,8 @@ async function main() {
   } else {
     // NPM global installation
     try {
-      console.log("📦 Installing meta-ads-mcp globally...");
-      execSync("npm install -g meta-ads-mcp", { stdio: "inherit" });
+      console.log("📦 Installing @edvintoome/meta-mcp globally...");
+      execSync("npm install -g @edvintoome/meta-mcp", { stdio: "inherit" });
       console.log("✅ Installation completed");
     } catch (error) {
       console.log("⚠️  Global installation failed. Using npx instead...");
@@ -222,7 +222,7 @@ async function main() {
 
     serverConfig = {
       command: "npx",
-      args: ["-y", "meta-ads-mcp"],
+      args: ["-y", "@edvintoome/meta-mcp"],
       env: {
         META_ACCESS_TOKEN: accessToken.trim(),
       },
@@ -280,7 +280,7 @@ async function main() {
       )}`
     );
   } else {
-    console.log("   npx -y meta-ads-mcp");
+    console.log("   npx -y @edvintoome/meta-mcp");
   }
 
   console.log(
