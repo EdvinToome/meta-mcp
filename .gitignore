@@ -4,9 +4,9 @@ npm-debug.log
 .env
 .DS_Store
 *.tgz
-.claude
 .vercel
 .env*.local
 .kiro
-.claude
-CLAUDE.md
+site-profiles.local.json
+BUSINESS_RULES.local.md
+AGENTS.local.md

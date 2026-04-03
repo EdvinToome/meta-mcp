@@ -1,0 +1,11 @@
+[mcp_servers.meta]
+command = "/absolute/path/to/meta-mcp/node_modules/.bin/tsx"
+args = ["/absolute/path/to/meta-mcp/src/index.ts"]
+enabled = true
+
+[mcp_servers.meta.env]
+META_ACCESS_TOKEN = "your_meta_access_token_here"
+META_APP_ID = "your_app_id_optional"
+META_APP_SECRET = "your_app_secret_optional"
+META_BUSINESS_ID = "your_business_id_optional"
+META_AUTO_REFRESH = "true"

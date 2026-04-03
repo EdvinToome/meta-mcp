@@ -26,7 +26,7 @@ class MetaAdsClient {
     // Create transport - adjust the command based on your setup
     this.transport = new StdioClientTransport({
       command: "npx",
-      args: ["meta-ads-mcp"], // or path to your built server
+      args: ["-y", "@edvintoome/meta-mcp"], // or path to your built server
     });
 
     // Create client

@@ -15,6 +15,10 @@ import { registerOAuthTools } from "./tools/oauth.js";
 import { registerCampaignResources } from "./resources/campaigns.js";
 import { registerInsightsResources } from "./resources/insights.js";
 import { registerAudienceResources } from "./resources/audiences.js";
+import {
+  getAdAccountsAction,
+  healthCheckAction,
+} from "./shared/meta-v1-actions.js";
 
 async function main() {
   try {
@@ -100,107 +104,12 @@ async function main() {
     console.error("   ✅ Audience resources registered");
 
     // Add account discovery tool
-    server.tool("get_ad_accounts", {}, async () => {
-      try {
-        const accounts = await metaClient.getAdAccounts();
-
-        const accountsData = accounts.map((account) => ({
-          id: account.id,
-          name: account.name,
-          account_status: account.account_status,
-          currency: account.currency,
-          timezone_name: account.timezone_name,
-          balance: account.balance,
-          business: account.business
-            ? {
-                id: account.business.id,
-                name: account.business.name,
-              }
-            : null,
-        }));
-
-        const response = {
-          success: true,
-          accounts: accountsData,
-          total_accounts: accountsData.length,
-          message: "Ad accounts retrieved successfully",
-        };
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(response, null, 2),
-            },
-          ],
-        };
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error occurred";
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error getting ad accounts: ${errorMessage}`,
-            },
-          ],
-          isError: true,
-        };
-      }
-    });
+    server.tool("get_ad_accounts", {}, async () =>
+      getAdAccountsAction(metaClient),
+    );
 
     // Add server health check tool
-    server.tool("health_check", {}, async () => {
-      try {
-        const accounts = await metaClient.getAdAccounts();
-        const response = {
-          status: "healthy",
-          server_name: "Meta Marketing API Server",
-          version: "1.0.0",
-          timestamp: new Date().toISOString(),
-          meta_api_connection: "connected",
-          accessible_accounts: accounts.length,
-          rate_limit_status: "operational",
-          features: {
-            campaign_management: true,
-            analytics_reporting: true,
-            audience_management: true,
-            creative_management: true,
-            real_time_insights: true,
-          },
-        };
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(response, null, 2),
-            },
-          ],
-        };
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error occurred";
-        const response = {
-          status: "unhealthy",
-          server_name: "Meta Marketing API Server",
-          version: "1.0.0",
-          timestamp: new Date().toISOString(),
-          error: errorMessage,
-          meta_api_connection: "failed",
-        };
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(response, null, 2),
-            },
-          ],
-          isError: true,
-        };
-      }
-    });
+    server.tool("health_check", {}, async () => healthCheckAction(metaClient));
 
     // Add server capabilities info
     server.tool("get_capabilities", {}, async () => {
@@ -304,6 +213,7 @@ async function main() {
           // Ad tools
           "list_ads",
           "create_ad",
+          "run_structured_ad_build",
           // Analytics tools
           "get_insights",
           "compare_performance",

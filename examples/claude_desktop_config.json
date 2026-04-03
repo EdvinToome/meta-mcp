@@ -4,7 +4,7 @@
       "command": "npx",
       "args": [
         "-y",
-        "meta-ads-mcp"
+        "@edvintoome/meta-mcp"
       ],
       "env": {
         "META_ACCESS_TOKEN": "your_meta_access_token_here",

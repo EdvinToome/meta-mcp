@@ -1,6 +1,7 @@
 import fetch from "node-fetch";
 import { readFile } from "node:fs/promises";
-import { basename, extname } from "node:path";
+import { basename, extname, parse } from "node:path";
+import sharp from "sharp";
 import { AuthManager } from "./utils/auth.js";
 import { globalRateLimiter } from "./utils/rate-limiter.js";
 import {
@@ -73,6 +74,86 @@ export class MetaApiClient {
   ): string {
     const separator = url.includes("?") ? "&" : "?";
     return `${url}${separator}${new URLSearchParams(params).toString()}`;
+  }
+
+  private getImageContentType(format?: string, filePath?: string): string {
+    if (format === "png") return "image/png";
+    if (format === "gif") return "image/gif";
+    if (format === "webp") return "image/webp";
+
+    const extension = filePath ? extname(filePath).toLowerCase() : "";
+    if (extension === ".png") return "image/png";
+    if (extension === ".gif") return "image/gif";
+    if (extension === ".webp") return "image/webp";
+    return "image/jpeg";
+  }
+
+  private isUnsupportedImageError(result: any): boolean {
+    return (
+      result?.error?.error_subcode === 1487411 ||
+      result?.error?.error_user_title === "FileTypeNotSupported"
+    );
+  }
+
+  private async buildImageUploadPayload(
+    filePath: string,
+    imageName?: string,
+    normalizeToJpeg = false
+  ) {
+    if (normalizeToJpeg) {
+      const fileName = `${parse(imageName || basename(filePath)).name}.jpg`;
+      const buffer = await sharp(filePath)
+        .rotate()
+        .jpeg({ quality: 92, progressive: false })
+        .toBuffer();
+
+      return {
+        blob: new Blob([buffer], { type: "image/jpeg" }),
+        contentType: "image/jpeg",
+        filename: fileName,
+      };
+    }
+
+    const fileBuffer = await readFile(filePath);
+    const metadata = await sharp(fileBuffer).metadata();
+    const contentType = this.getImageContentType(metadata.format, filePath);
+    const filename = imageName || basename(filePath);
+
+    return {
+      blob: new Blob([fileBuffer], { type: contentType }),
+      contentType,
+      filename,
+    };
+  }
+
+  private async postAdImage(
+    formattedAccountId: string,
+    payload: { blob: Blob; filename: string }
+  ) {
+    const formData = new FormData();
+    formData.append("filename", payload.blob, payload.filename);
+    formData.append("access_token", this.auth.getAccessToken());
+
+    const uploadResponse = await fetch(
+      `https://graph.facebook.com/v23.0/${formattedAccountId}/adimages`,
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+
+    const uploadResult = (await uploadResponse.json()) as any;
+    this.debug("Upload response:", JSON.stringify(uploadResult, null, 2));
+
+    if (!uploadResponse.ok) {
+      const error = new Error(
+        `Image upload failed: ${JSON.stringify(uploadResult)}`
+      ) as Error & { metaResult?: any };
+      error.metaResult = uploadResult;
+      throw error;
+    }
+
+    return uploadResult;
   }
 
   private async makeRequest<T>(
@@ -589,6 +670,7 @@ export class MetaApiClient {
     creativeData: {
       name: string;
       object_story_spec: any;
+      asset_feed_spec?: any;
       degrees_of_freedom_spec?: any;
     }
   ): Promise<AdCreative> {
@@ -930,41 +1012,40 @@ export class MetaApiClient {
   ): Promise<{ hash: string; url: string; name: string }> {
     try {
       const formattedAccountId = this.auth.getAccountId(accountId);
-      const fileBuffer = await readFile(filePath);
-      const extension = extname(filePath).toLowerCase();
-      const contentType =
-        extension === ".png"
-          ? "image/png"
-          : extension === ".gif"
-            ? "image/gif"
-            : extension === ".webp"
-              ? "image/webp"
-              : "image/jpeg";
-      const filename = imageName || basename(filePath);
+      const initialPayload = await this.buildImageUploadPayload(
+        filePath,
+        imageName
+      );
+      let uploadResult: any;
 
       this.debug("=== IMAGE UPLOAD FROM FILE DEBUG ===");
       this.debug("Account ID:", formattedAccountId);
       this.debug("File Path:", filePath);
-      this.debug("Image Name:", filename);
+      this.debug("Image Name:", initialPayload.filename);
+      this.debug("Content Type:", initialPayload.contentType);
 
-      const imageBlob = new Blob([fileBuffer], { type: contentType });
-      const formData = new FormData();
-      formData.append("filename", imageBlob, filename);
-      formData.append("access_token", this.auth.getAccessToken());
+      try {
+        uploadResult = await this.postAdImage(formattedAccountId, initialPayload);
+      } catch (error) {
+        const metaResult =
+          error instanceof Error && "metaResult" in error
+            ? (error as Error & { metaResult?: any }).metaResult
+            : undefined;
 
-      const uploadResponse = await fetch(
-        `https://graph.facebook.com/v23.0/${formattedAccountId}/adimages`,
-        {
-          method: "POST",
-          body: formData,
+        if (!this.isUnsupportedImageError(metaResult)) {
+          throw error;
         }
-      );
 
-      const uploadResult = (await uploadResponse.json()) as any;
-      this.debug("Upload response:", JSON.stringify(uploadResult, null, 2));
-
-      if (!uploadResponse.ok) {
-        throw new Error(`Image upload failed: ${JSON.stringify(uploadResult)}`);
+        this.debug("Retrying image upload with normalized baseline JPEG");
+        const normalizedPayload = await this.buildImageUploadPayload(
+          filePath,
+          imageName,
+          true
+        );
+        uploadResult = await this.postAdImage(
+          formattedAccountId,
+          normalizedPayload
+        );
       }
 
       const images = uploadResult.images;
@@ -982,7 +1063,7 @@ export class MetaApiClient {
       return {
         hash: imageResult.hash,
         url: imageResult.url || "",
-        name: filename,
+        name: initialPayload.filename,
       };
     } catch (error) {
       this.debug("=== IMAGE FILE UPLOAD ERROR ===");

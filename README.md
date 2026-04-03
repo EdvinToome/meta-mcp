@@ -1,6 +1,6 @@
 # Meta Marketing API MCP Server
 
-A comprehensive Model Context Protocol (MCP) server that enables AI assistants like Claude to interact with Facebook/Instagram advertising data through the Meta Marketing API. This server provides full campaign lifecycle management, analytics, audience targeting, and creative optimization capabilities.
+A Meta Ads MCP server plus agent bundle for Codex and Claude Code. The package provides the Meta API server, skill prompts, Claude slash commands, and local workspace initialization for site profiles and business-specific rules.
 
 ## ⚡ Quick Start
 
@@ -52,6 +52,85 @@ If your app requires `appsecret_proof`, add `META_APP_SECRET`:
 
 ### 4) Verify
 Restart your MCP client, then call the `health_check` tool from the client.
+
+## Agent Bundle
+
+This repo now ships as a Meta Ads agent bundle around the local `meta` MCP server.
+
+Bundled skills:
+- `meta-ads-builder`
+- `meta-ads-consultant`
+- `meta-ads-morning-review`
+- `meta-ad-copy`
+- supporting `ad-creative`
+- supporting `paid-ads`
+
+Tracked starter files:
+- [site-profiles.example.json](./site-profiles.example.json)
+- [BUSINESS_RULES.example.md](./BUSINESS_RULES.example.md)
+
+Local runtime files:
+- `site-profiles.local.json`
+- `BUSINESS_RULES.local.md`
+
+Create the local runtime files with:
+
+```bash
+npm run init:workspace
+```
+
+## Codex Plugin
+
+Codex plugin discovery now uses the standard repo-local layout:
+- plugin bundle: `plugins/meta-mcp`
+- workspace marketplace: `.agents/plugins/marketplace.json`
+
+Open this repo in Codex and the plugin can be discovered from the local workspace marketplace.
+
+If you want it available outside this repo too, run:
+
+```bash
+npm run setup:codex-plugin
+```
+
+That installer:
+- creates `~/plugins/meta-mcp` as a link to this repo
+- writes `~/.agents/plugins/marketplace.json`
+- enables `meta-mcp@meta-mcp-local` in `~/.codex/config.toml`
+
+If you are using the published package instead of a clone, you can also install it with:
+
+```bash
+npx -y @edvintoome/meta-mcp install-codex-plugin
+```
+
+## Codex + Meta Skills
+
+This repo ships repo-local skills under `skills/`.
+
+Use `npm run setup:codex` to wire both pieces together:
+- installs all repo Meta skills into `~/.codex/skills`
+- updates `~/.codex/config.toml` with a local `meta` MCP server pointing at `src/index.ts`
+- reuses the `meta` namespace the skills expect, so `mcp__meta__...` calls resolve without extra mapping
+
+Why this split works:
+- the skills are the orchestration layer
+- the MCP server is the execution layer that talks to Meta
+- keeping the skills symlinked to the repo means skill updates ship with the repo and do not need manual copying
+
+After setup, restart Codex and use prompts like:
+
+```text
+Use $meta-ads-builder to publish a paused Meta ad from /absolute/path/to/image.jpg for the selected site profile
+```
+
+The builder skill will:
+- call `health_check` and `get_capabilities`
+- resolve the matching site profile from `site-profiles.local.json`
+- use the selected image or enumerate image candidates from your working folder
+- persist `meta-ads-brief.json` and `meta-ads-result.json` in the working folder
+
+The consultant and morning-review skills use the same MCP server and site profiles for diagnosis, daily reporting, creative feedback, and optimization advice.
 
 ## 🚀 Features
 
@@ -122,6 +201,67 @@ The setup script will:
 - ✅ Install dependencies
 - ✅ Test the connection
 
+### Codex Setup
+
+If you want Codex to use this MCP server together with the bundled Meta skills:
+
+```bash
+npm install
+npm run setup:codex
+```
+
+The installer uses a local source setup:
+- MCP server command: `node_modules/.bin/tsx src/index.ts`
+- Codex MCP server name: `meta`
+- skill install target: `~/.codex/skills/*`
+
+If you already have different skills at those targets, re-run with `--force` to replace them:
+
+```bash
+npm run setup:codex -- --force
+```
+
+### Claude Code Setup
+
+Claude Code can use the same repo directly:
+
+- `.mcp.json` exposes the local `meta` MCP server
+- `CLAUDE.md` provides project instructions
+- `.claude/commands/` provides ready-to-use slash commands
+- the local server still expects `META_ACCESS_TOKEN` and optional `META_APP_*` variables in the shell that launches Claude Code
+- local business data should live in `site-profiles.local.json` and `BUSINESS_RULES.local.md`
+
+Example commands after opening the repo in Claude Code:
+- `/meta-ads-builder`
+- `/meta-ads-consultant`
+- `/meta-ads-morning-review`
+- `/meta-ad-copy`
+
+To install the Meta bundle into another Claude Code project:
+
+```bash
+npm run setup:claude -- --project /absolute/path/to/project
+```
+
+That installer:
+- merges a local `meta` server into the target project's `.mcp.json`
+- installs Meta slash commands under `.claude/commands`
+- links the Meta skills and profile docs under `.claude/meta-mcp`
+- creates editable `.claude/meta-mcp/site-profiles.local.json` and `.claude/meta-mcp/BUSINESS_RULES.local.md` if they do not exist
+- appends a small managed Meta section to the target `CLAUDE.md`
+
+If you are using the published package instead of a clone:
+
+```bash
+npx -y @edvintoome/meta-mcp install-claude --project /absolute/path/to/project
+```
+
+After installation:
+1. Edit `.claude/meta-mcp/site-profiles.local.json`
+2. Edit `.claude/meta-mcp/BUSINESS_RULES.local.md`
+3. Make sure the shell that launches Claude Code has `META_ACCESS_TOKEN`
+4. Open the project in Claude Code and run `/meta-ads-builder`
+
 ## 🔧 Configuration Guide
 
 ### Step 1: Get Meta Access Token
@@ -191,6 +331,26 @@ If you've cloned the repository locally:
   }
 }
 ```
+
+#### Codex Local Configuration:
+
+Use the bundled example in [examples/codex_config.toml](./examples/codex_config.toml) or add this to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.meta]
+command = "/absolute/path/to/meta-mcp/node_modules/.bin/tsx"
+args = ["/absolute/path/to/meta-mcp/src/index.ts"]
+enabled = true
+
+[mcp_servers.meta.env]
+META_ACCESS_TOKEN = "your_meta_access_token_here"
+META_APP_ID = "your_app_id_optional"
+META_APP_SECRET = "your_app_secret_optional"
+META_BUSINESS_ID = "your_business_id_optional"
+META_AUTO_REFRESH = "true"
+```
+
+The server name should stay `meta` if you want the bundled skill to work without edits, because the skill calls `mcp__meta__...` tools directly.
 
 ### Step 3: Configure for Cursor
 

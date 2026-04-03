@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 import { MetaApiClient } from "../meta-client.js";
 import {
   ListCampaignsSchema,
@@ -8,7 +9,14 @@ import {
   ListAdSetsSchema,
   CreateAdSetSchema,
   CreateAdSchema,
+  RunStructuredAdBuildSchema,
 } from "../types/mcp-tools";
+import {
+  createAdAction,
+  createAdSetEnhancedAction,
+  createCampaignAction,
+} from "../shared/meta-v1-actions.js";
+import { runStructuredAdBuildAction } from "../shared/structured-build.js";
 
 export function setupCampaignTools(
   server: McpServer,
@@ -89,90 +97,7 @@ export function registerCampaignTools(
     "create_campaign",
     "Create a new Meta ad campaign. Specify the objective, name, and either a daily or lifetime budget (not both). Optionally set start/stop times, special ad categories, and bid strategy. The campaign will be created in PAUSED status unless otherwise specified. Returns the new campaign ID and summary.",
     CreateCampaignSchema.shape,
-    async ({
-      account_id,
-      name,
-      objective,
-      status,
-      daily_budget,
-      lifetime_budget,
-      start_time,
-      stop_time,
-      special_ad_categories,
-      bid_strategy,
-      bid_cap,
-      budget_optimization,
-    }) => {
-      try {
-        if (daily_budget && lifetime_budget) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: "Error: Cannot set both daily_budget and lifetime_budget. Choose one.",
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        const campaignData: any = {
-          name,
-          objective,
-          status: status || "PAUSED",
-        };
-
-        if (daily_budget) campaignData.daily_budget = daily_budget;
-        if (lifetime_budget) campaignData.lifetime_budget = lifetime_budget;
-        if (start_time) campaignData.start_time = start_time;
-        if (stop_time) campaignData.stop_time = stop_time;
-        if (special_ad_categories)
-          campaignData.special_ad_categories = special_ad_categories;
-        if (bid_strategy) campaignData.bid_strategy = bid_strategy;
-        if (bid_cap) campaignData.bid_cap = bid_cap;
-        if (budget_optimization !== undefined)
-          campaignData.is_budget_optimization_enabled = budget_optimization;
-
-        const result = await metaClient.createCampaign(
-          account_id,
-          campaignData
-        );
-
-        const response = {
-          success: true,
-          campaign_id: result.id,
-          message: `Campaign "${name}" created successfully`,
-          details: {
-            id: result.id,
-            name,
-            objective,
-            status: status || "PAUSED",
-            account_id,
-          },
-        };
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(response, null, 2),
-            },
-          ],
-        };
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error occurred";
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error creating campaign: ${errorMessage}`,
-            },
-          ],
-          isError: true,
-        };
-      }
-    }
+    async (params) => createCampaignAction(metaClient, params)
   );
 
   // Update Campaign Tool
@@ -572,433 +497,7 @@ export function registerCampaignTools(
     "create_ad_set_enhanced",
     "Create a new ad set with advanced validation and helpful error messages. Specify campaign, name, budget (daily or lifetime), optimization goal, billing event, targeting, and promoted object if required by the campaign objective. Returns the new ad set ID and summary, or detailed error guidance if creation fails.",
     CreateAdSetSchema.shape,
-    async ({
-      campaign_id,
-      name,
-      daily_budget,
-      lifetime_budget,
-      optimization_goal,
-      billing_event,
-      bid_amount,
-      start_time,
-      end_time,
-      targeting,
-      status,
-      promoted_object,
-      attribution_spec,
-      destination_type,
-      is_dynamic_creative,
-      use_new_app_click,
-      configured_status,
-      optimization_sub_event,
-      recurring_budget_semantics,
-    }) => {
-      try {
-        if (daily_budget && lifetime_budget) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: "Error: Cannot set both daily_budget and lifetime_budget. Choose one.",
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        // Validate optimization_goal and billing_event combination
-        const validCombinations = [
-          { optimization_goal: "LINK_CLICKS", billing_event: "IMPRESSIONS" },
-          { optimization_goal: "LINK_CLICKS", billing_event: "LINK_CLICKS" },
-          {
-            optimization_goal: "LANDING_PAGE_VIEWS",
-            billing_event: "IMPRESSIONS",
-          },
-          { optimization_goal: "IMPRESSIONS", billing_event: "IMPRESSIONS" },
-          { optimization_goal: "REACH", billing_event: "IMPRESSIONS" },
-          {
-            optimization_goal: "POST_ENGAGEMENT",
-            billing_event: "IMPRESSIONS",
-          },
-          { optimization_goal: "PAGE_LIKES", billing_event: "IMPRESSIONS" },
-          { optimization_goal: "PAGE_LIKES", billing_event: "PAGE_LIKES" },
-          { optimization_goal: "VIDEO_VIEWS", billing_event: "IMPRESSIONS" },
-          { optimization_goal: "VIDEO_VIEWS", billing_event: "VIDEO_VIEWS" },
-          { optimization_goal: "CONVERSIONS", billing_event: "IMPRESSIONS" },
-          {
-            optimization_goal: "OFFSITE_CONVERSIONS",
-            billing_event: "IMPRESSIONS",
-          },
-          { optimization_goal: "APP_INSTALLS", billing_event: "IMPRESSIONS" },
-        ];
-
-        const isValidCombination = validCombinations.some(
-          (combo) =>
-            combo.optimization_goal === optimization_goal &&
-            combo.billing_event === billing_event
-        );
-
-        if (!isValidCombination) {
-          console.error(
-            `Invalid combination: optimization_goal=${optimization_goal}, billing_event=${billing_event}`
-          );
-          return {
-            content: [
-              {
-                type: "text",
-                text:
-                  `Error: Invalid optimization_goal (${optimization_goal}) and billing_event (${billing_event}) combination. Common valid combinations include:\n` +
-                  `- LINK_CLICKS + IMPRESSIONS\n` +
-                  `- LANDING_PAGE_VIEWS + IMPRESSIONS\n` +
-                  `- REACH + IMPRESSIONS\n` +
-                  `- CONVERSIONS + IMPRESSIONS\n` +
-                  `- OFFSITE_CONVERSIONS + IMPRESSIONS`,
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        // Ensure budget is an integer (Meta API expects cents)
-        const formatBudget = (budget: number) => Math.round(budget);
-
-        interface AdSetData {
-          name: string;
-          optimization_goal: string;
-          billing_event: string;
-          status: string;
-          daily_budget?: number;
-          lifetime_budget?: number;
-          bid_amount?: number;
-          start_time?: string;
-          end_time?: string;
-          targeting?: Record<string, unknown>;
-          promoted_object?: {
-            page_id?: string;
-            pixel_id?: string;
-            application_id?: string;
-            object_store_url?: string;
-            custom_event_type?: string;
-          };
-          attribution_spec?: Array<{
-            event_type: string;
-            window_days: number;
-          }>;
-          destination_type?: string;
-          is_dynamic_creative?: boolean;
-          use_new_app_click?: boolean;
-          configured_status?: string;
-          optimization_sub_event?: string;
-          recurring_budget_semantics?: boolean;
-        }
-
-        const adSetData: AdSetData = {
-          name,
-          optimization_goal,
-          billing_event,
-          status: status || "PAUSED",
-        };
-
-        // Add budgets when using ad set budget mode.
-        if (daily_budget) {
-          adSetData.daily_budget = formatBudget(daily_budget);
-        }
-        if (lifetime_budget) {
-          adSetData.lifetime_budget = formatBudget(lifetime_budget);
-          // Lifetime budget requires start_time and end_time
-          if (!start_time || !end_time) {
-            const now = new Date();
-            const endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
-            adSetData.start_time = start_time || now.toISOString();
-            adSetData.end_time = end_time || endDate.toISOString();
-          }
-        }
-
-        if (bid_amount) adSetData.bid_amount = bid_amount;
-        if (start_time) adSetData.start_time = start_time;
-        if (end_time) adSetData.end_time = end_time;
-
-        // Set initial targeting
-        if (targeting) {
-          adSetData.targeting = targeting;
-        }
-
-        // Handle promoted_object - check if it's required for this campaign
-        let campaign;
-        try {
-          campaign = await metaClient.getCampaign(campaign_id);
-        } catch (error) {
-          console.error("Failed to fetch campaign details:", error);
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Error: Unable to fetch campaign details for campaign_id ${campaign_id}. Please verify the campaign exists and you have permission to access it.`,
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        const campaignHasBudget =
-          campaign.daily_budget !== undefined || campaign.lifetime_budget !== undefined;
-
-        if (!daily_budget && !lifetime_budget && !campaignHasBudget) {
-          return {
-            content: [
-              {
-                type: "text",
-                text:
-                  "Error: Provide daily_budget or lifetime_budget, unless the parent campaign already has a campaign budget.",
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        if ((daily_budget || lifetime_budget) && campaignHasBudget) {
-          return {
-            content: [
-              {
-                type: "text",
-                text:
-                  "Error: This campaign already has a campaign budget, so the ad set must not include daily_budget or lifetime_budget.",
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        // Enhanced validation for promoted_object based on campaign objective
-        const requiresPromotedObject = [
-          "OUTCOME_TRAFFIC",
-          "OUTCOME_ENGAGEMENT",
-          "OUTCOME_APP_PROMOTION",
-          "OUTCOME_LEADS",
-          "OUTCOME_SALES",
-        ].includes(campaign.objective);
-
-        if (requiresPromotedObject && !promoted_object) {
-          console.error(
-            `Campaign objective ${campaign.objective} requires promoted_object`
-          );
-
-          let objectiveHelp = "";
-          switch (campaign.objective) {
-            case "OUTCOME_TRAFFIC":
-              objectiveHelp = `For OUTCOME_TRAFFIC campaigns, provide:\n- page_id: Facebook Page ID to drive traffic to\n- pixel_id: Facebook Pixel ID for website tracking`;
-              break;
-            case "OUTCOME_ENGAGEMENT":
-              objectiveHelp = `For OUTCOME_ENGAGEMENT campaigns, provide:\n- page_id: Facebook Page ID to promote`;
-              break;
-            case "OUTCOME_APP_PROMOTION":
-              objectiveHelp = `For OUTCOME_APP_PROMOTION campaigns, provide:\n- application_id: App ID to promote\n- object_store_url: App store URL`;
-              break;
-            case "OUTCOME_LEADS":
-            case "OUTCOME_SALES":
-              objectiveHelp = `For ${campaign.objective} campaigns, provide:\n- pixel_id: Facebook Pixel ID for conversion tracking\n- custom_event_type: Custom conversion event type`;
-              break;
-          }
-
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Error: Campaign with objective "${campaign.objective}" requires a promoted_object parameter.\n\n${objectiveHelp}\n\nExample: {"promoted_object": {"page_id": "your_page_id"}}`,
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        if (promoted_object) {
-          adSetData.promoted_object = promoted_object;
-        }
-
-        // Add required Meta API fields with defaults and validation
-        adSetData.attribution_spec = attribution_spec || [
-          { event_type: "CLICK_THROUGH", window_days: 1 },
-        ];
-
-        // Set destination_type - use "UNDEFINED" as default per working SDK example
-        adSetData.destination_type = destination_type || "UNDEFINED";
-
-        adSetData.is_dynamic_creative = is_dynamic_creative ?? false;
-        adSetData.use_new_app_click = use_new_app_click ?? false;
-
-        // Add the critical missing fields from GitHub issue #162
-        adSetData.configured_status = configured_status || status || "PAUSED";
-        adSetData.optimization_sub_event = optimization_sub_event || "NONE";
-        adSetData.recurring_budget_semantics =
-          recurring_budget_semantics ?? false;
-
-        // Validate attribution_spec format
-        if (
-          adSetData.attribution_spec &&
-          Array.isArray(adSetData.attribution_spec)
-        ) {
-          adSetData.attribution_spec = adSetData.attribution_spec.map(
-            (spec) => ({
-              event_type: spec.event_type || "CLICK_THROUGH",
-              window_days: spec.window_days || 1,
-            })
-          );
-        }
-
-        // Ensure targeting has required fields
-        if (adSetData.targeting) {
-          if (!adSetData.targeting.targeting_optimization) {
-            adSetData.targeting.targeting_optimization = "none";
-          }
-          if (!adSetData.targeting.brand_safety_content_filter_levels) {
-            adSetData.targeting.brand_safety_content_filter_levels = [
-              "FACEBOOK_STANDARD",
-            ];
-          }
-          if (
-            adSetData.targeting.geo_locations &&
-            !(adSetData.targeting.geo_locations as any).location_types
-          ) {
-            (adSetData.targeting.geo_locations as any).location_types = [
-              "home",
-              "recent",
-            ];
-          }
-        } else {
-          // Provide complete default targeting with all required fields per GitHub issue #162
-          adSetData.targeting = {
-            age_min: 18,
-            age_max: 65,
-            geo_locations: {
-              countries: ["US"],
-              location_types: ["home", "recent"],
-            },
-            targeting_optimization: "none",
-            brand_safety_content_filter_levels: ["FACEBOOK_STANDARD"],
-          };
-        }
-
-        // Ensure age fields are set even when targeting is provided
-        if (adSetData.targeting && typeof adSetData.targeting === "object") {
-          if (!(adSetData.targeting as any).age_min) {
-            (adSetData.targeting as any).age_min = 18;
-          }
-          if (!(adSetData.targeting as any).age_max) {
-            (adSetData.targeting as any).age_max = 65;
-          }
-        }
-
-        // Log the request for debugging
-        console.error(
-          "Creating ad set with data:",
-          JSON.stringify(adSetData, null, 2)
-        );
-        console.error("For campaign ID:", campaign_id);
-        console.error("Campaign objective:", campaign.objective);
-
-        const result = await metaClient.createAdSet(campaign_id, adSetData);
-
-        const response = {
-          success: true,
-          ad_set_id: result.id,
-          message: `Ad set "${name}" created successfully`,
-          details: {
-            id: result.id,
-            name,
-            campaign_id,
-            optimization_goal,
-            billing_event,
-            status: status || "PAUSED",
-          },
-        };
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(response, null, 2),
-            },
-          ],
-        };
-      } catch (error) {
-        // Enhanced error handling for Meta API errors
-        console.error("=== AD SET CREATION TOOL ERROR ===");
-        console.error("Error object:", error);
-
-        let errorMessage = "Unknown error occurred";
-        let errorDetails = "";
-        let specificErrorInfo = "";
-
-        if (error instanceof Error) {
-          errorMessage = error.message;
-          console.error("Error message:", error.message);
-
-          // Try to parse Meta API error details if available
-          try {
-            const errorObj = JSON.parse(error.message);
-            console.error(
-              "Parsed error object:",
-              JSON.stringify(errorObj, null, 2)
-            );
-
-            if (errorObj.error) {
-              errorMessage = errorObj.error.message || errorMessage;
-              errorDetails =
-                errorObj.error.error_user_title ||
-                errorObj.error.error_user_msg ||
-                "";
-
-              // Log detailed error information for debugging
-              console.error("Meta API Error Details:", {
-                message: errorObj.error.message,
-                code: errorObj.error.code,
-                error_subcode: errorObj.error.error_subcode,
-                fbtrace_id: errorObj.error.fbtrace_id,
-                type: errorObj.error.type,
-                error_data: errorObj.error.error_data,
-              });
-
-              // Provide specific guidance based on error codes
-              if (errorObj.error.code === 100) {
-                specificErrorInfo =
-                  "\n\nThis is usually caused by missing required fields or invalid field values.";
-
-                if (errorObj.error.error_data) {
-                  specificErrorInfo += `\nError data: ${JSON.stringify(
-                    errorObj.error.error_data
-                  )}`;
-                }
-              } else if (errorObj.error.code === 190) {
-                specificErrorInfo =
-                  "\n\nThis indicates an access token issue. Please check your authentication.";
-              } else if (errorObj.error.code === 200) {
-                specificErrorInfo =
-                  "\n\nThis indicates insufficient permissions for the operation.";
-              }
-            }
-          } catch (parseError) {
-            // Error message is not JSON, use as is
-            console.error("Raw error message (not JSON):", error.message);
-          }
-        }
-
-        console.error("================================");
-
-        const fullErrorMessage = errorDetails
-          ? `${errorMessage}\n\nAdditional details: ${errorDetails}${specificErrorInfo}`
-          : `${errorMessage}${specificErrorInfo}`;
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error creating ad set: ${fullErrorMessage}`,
-            },
-          ],
-          isError: true,
-        };
-      }
-    }
+    async (params) => createAdSetEnhancedAction(metaClient, params)
   );
 
   // List Ads Tool
@@ -1080,52 +579,14 @@ export function registerCampaignTools(
     "create_ad",
     "Create a new ad within an ad set by attaching an existing creative ID. Use this after create_ad_creative to complete the delivery object.",
     CreateAdSchema.shape,
-    async ({ ad_set_id, name, creative_id, status }) => {
-      try {
-        const adData = {
-          name,
-          adset_id: ad_set_id,
-          creative: { creative_id },
-          status: status || "PAUSED",
-        };
+    async (params) => createAdAction(metaClient, params)
+  );
 
-        const ad = await metaClient.createAd(ad_set_id, adData);
-
-        const response = {
-          success: true,
-          ad_id: ad.id,
-          message: `Ad "${name}" created successfully`,
-          details: {
-            id: ad.id,
-            name: ad.name ?? name,
-            ad_set_id,
-            creative_id,
-            status: ad.status ?? (status || "PAUSED"),
-          },
-        };
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(response, null, 2),
-            },
-          ],
-        };
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error occurred";
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error creating ad: ${errorMessage}`,
-            },
-          ],
-          isError: true,
-        };
-      }
-    }
+  server.tool(
+    "run_structured_ad_build",
+    "Run a deterministic full Meta build from one structured payload. This creates the campaign, dynamic creative ad set, generates structured ad copy from the provided copy context, creates the multi-variant creative, and creates the final ad together so the asset feed creative and ad set shape always match.",
+    RunStructuredAdBuildSchema.shape,
+    async (params) => runStructuredAdBuildAction(metaClient, params)
   );
 
   // Get Campaign Details Tool
@@ -1405,10 +866,9 @@ export function registerCampaignTools(
     "get_quick_fixes",
     "Get targeted troubleshooting tips for common Meta Ads API errors. Provide an error message to receive likely causes, suggestions, and next steps for resolution.",
     {
-      error_message: {
-        type: "string",
-        description: "The error message you received from the API",
-      },
+      error_message: z
+        .string()
+        .describe("The error message you received from the API"),
     },
     async ({ error_message }) => {
       const fixes = {
@@ -1537,10 +997,7 @@ export function registerCampaignTools(
     "verify_account_setup",
     "Verify that a Meta ad account is ready for ad creation. Checks for account access, payment method, Facebook pages, and active campaigns. Returns a setup status, recommendations, and warnings.",
     {
-      account_id: {
-        type: "string",
-        description: "Meta Ad Account ID to verify",
-      },
+      account_id: z.string().describe("Meta Ad Account ID to verify"),
     },
     async ({ account_id }) => {
       try {

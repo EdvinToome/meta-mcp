@@ -185,7 +185,7 @@ function printTroubleshootingTips() {
   }
 
   console.log("3. Test the server manually:");
-  console.log("   npx -y meta-ads-mcp");
+  console.log("   npx -y @edvintoome/meta-mcp");
   console.log("4. Verify your Meta access token is valid:");
   console.log(
     '   curl -G -d "access_token=YOUR_TOKEN" "https://graph.facebook.com/v23.0/me"'

@@ -168,6 +168,10 @@ export const CreateAdSetSchema = z.object({
         .string()
         .optional()
         .describe("Facebook Pixel ID for tracking"),
+      smart_pse_enabled: z
+        .boolean()
+        .optional()
+        .describe("Smart PSE toggle for purchase optimization"),
       application_id: z
         .string()
         .optional()
@@ -208,20 +212,20 @@ export const CreateAdSetSchema = z.object({
       "WHATSAPP",
       "UNDEFINED",
     ])
-    .default("UNDEFINED")
-    .describe("Destination type for traffic campaigns - REQUIRED"),
+    .optional()
+    .describe("Destination type when the specific ad set flow requires it"),
   is_dynamic_creative: z
     .boolean()
-    .default(false)
-    .describe("Whether to use dynamic creative optimization - REQUIRED"),
+    .optional()
+    .describe("Whether to use dynamic creative optimization"),
   use_new_app_click: z
     .boolean()
-    .default(false)
-    .describe("Whether to use new app click attribution - REQUIRED"),
+    .optional()
+    .describe("Whether to use new app click attribution"),
   configured_status: z
     .enum(["ACTIVE", "PAUSED"])
-    .default("PAUSED")
-    .describe("Configured status field - REQUIRED by Meta API"),
+    .optional()
+    .describe("Configured status field when the specific ad set flow requires it"),
   optimization_sub_event: z
     .enum([
       "NONE",
@@ -231,12 +235,12 @@ export const CreateAdSetSchema = z.object({
       "LEAD_GROUPED",
       "PURCHASE",
     ])
-    .default("NONE")
-    .describe("Optimization sub-event - REQUIRED by Meta API"),
+    .optional()
+    .describe("Optimization sub-event when the specific optimization flow requires it"),
   recurring_budget_semantics: z
     .boolean()
-    .default(false)
-    .describe("Recurring budget semantics - REQUIRED by Meta API"),
+    .optional()
+    .describe("Recurring budget semantics when required"),
   targeting: z
     .object({
       age_min: z
@@ -263,8 +267,8 @@ export const CreateAdSetSchema = z.object({
             .describe("Country codes for targeting"),
           location_types: z
             .array(z.enum(["home", "recent"]))
-            .default(["home", "recent"])
-            .describe("Location types for targeting - REQUIRED by Meta API"),
+            .optional()
+            .describe("Location types for targeting when needed"),
           regions: z
             .array(z.object({ key: z.string() }))
             .optional()
@@ -318,22 +322,35 @@ export const CreateAdSetSchema = z.object({
         .describe("Publisher platform targeting"),
       targeting_optimization: z
         .enum(["none", "expansion_all"])
-        .default("none")
-        .describe("Targeting optimization setting - REQUIRED by Meta API"),
+        .optional()
+        .describe("Targeting optimization setting"),
       brand_safety_content_filter_levels: z
-        .array(z.enum(["FACEBOOK_STANDARD", "AN_STANDARD", "RESTRICTIVE"]))
-        .default(["FACEBOOK_STANDARD"])
-        .describe("Brand safety content filter levels - REQUIRED by Meta API"),
+        .array(
+          z.enum([
+            "FACEBOOK_STANDARD",
+            "FACEBOOK_RELAXED",
+            "AN_STANDARD",
+            "AN_RELAXED",
+            "RESTRICTIVE",
+          ])
+        )
+        .optional()
+        .describe("Brand safety content filter levels"),
+      targeting_automation: z
+        .object({
+          advantage_audience: z.number().optional(),
+          individual_setting: z
+            .object({
+              age: z.number().optional(),
+              gender: z.number().optional(),
+            })
+            .optional(),
+        })
+        .optional()
+        .describe("Advantage Audience automation settings"),
     })
-    .default({
-      geo_locations: {
-        countries: ["US"],
-        location_types: ["home", "recent"],
-      },
-      targeting_optimization: "none",
-      brand_safety_content_filter_levels: ["FACEBOOK_STANDARD"],
-    })
-    .describe("Targeting parameters - defaults to US if not specified"),
+    .optional()
+    .describe("Targeting parameters"),
   status: z
     .enum(["ACTIVE", "PAUSED"])
     .default("PAUSED")
@@ -672,8 +689,18 @@ export const CreateAdCreativeSchema = z.object({
   page_id: z
     .string()
     .describe("Facebook Page ID (required for object_story_spec)"),
-  message: z.string().describe("Primary ad text/message"),
+  message: z.string().optional().describe("Primary ad text/message"),
+  messages: z
+    .array(z.string().min(1))
+    .min(1)
+    .optional()
+    .describe("Multiple primary text variants for asset_feed_spec creatives"),
   headline: z.string().optional().describe("Ad title/headline"),
+  headlines: z
+    .array(z.string().min(1))
+    .min(1)
+    .optional()
+    .describe("Multiple headline variants for asset_feed_spec creatives"),
   picture: z
     .string()
     .url()
@@ -737,10 +764,15 @@ export const CreateAdCreativeSchema = z.object({
       "Destination URL where users will be directed when clicking the ad"
     ),
   description: z.string().optional().describe("Additional description text"),
-  instagram_actor_id: z
+  descriptions: z
+    .array(z.string().min(1))
+    .min(1)
+    .optional()
+    .describe("Multiple description variants for asset_feed_spec creatives"),
+  instagram_user_id: z
     .string()
     .optional()
-    .describe("Instagram account ID for cross-posting"),
+    .describe("Instagram user ID for the creative identity"),
   adlabels: z
     .array(z.string())
     .optional()
@@ -789,6 +821,135 @@ export const CreateAdCreativeSchema = z.object({
     .describe("Caption text (typically domain name)"),
 });
 
+export const StructuredAdBuildItemSchema = z.object({
+  key: z.string().optional().describe("Stable key for this build item in the result payload"),
+  account_id: z.string().describe("Meta Ad Account ID"),
+  page_id: z.string().describe("Facebook Page ID for the creative"),
+  instagram_user_id: z
+    .string()
+    .optional()
+    .describe("Instagram user ID for the creative identity"),
+  pixel_id: z.string().describe("Pixel ID for the promoted object"),
+  countries: z
+    .array(z.string().min(2))
+    .min(1)
+    .describe("Country codes to target in the ad set"),
+  campaign_name: z.string().min(1).describe("Campaign name"),
+  ad_set_name: z.string().min(1).describe("Ad set name"),
+  creative_name: z.string().min(1).describe("Creative name"),
+  ad_name: z.string().min(1).describe("Ad name"),
+  destination_url: z
+    .string()
+    .url()
+    .describe("Destination URL for the ad click"),
+  daily_budget_major: z
+    .number()
+    .positive()
+    .describe("Daily budget in major currency units, for example 18 for EUR 18/day"),
+  start_time: z
+    .string()
+    .optional()
+    .describe("Ad set start time in ISO 8601 format"),
+  image_path: z
+    .string()
+    .optional()
+    .describe("Absolute local file path for the image to upload"),
+  image_hash: z
+    .string()
+    .optional()
+    .describe("Existing Meta image hash to reuse instead of uploading"),
+  image_name: z.string().optional().describe("Optional image library name"),
+  copy_context: z
+    .object({
+      brand_name: z.string().min(1).describe("Public-facing store or brand name"),
+      language: z.string().min(1).describe("Language to write the copy in"),
+      country: z.string().min(1).describe("Country for localization context"),
+      product_name: z.string().min(1).describe("Product or article name"),
+      page_type: z
+        .enum(["product", "advertorial"])
+        .optional()
+        .default("product")
+        .describe("Whether the destination page is a product page or advertorial"),
+      product_facts: z
+        .array(z.string().min(1))
+        .min(1)
+        .describe("Verified product or page facts pulled from the destination URL"),
+      creative_description: z
+        .string()
+        .min(1)
+        .describe("Short description of what the selected creative shows or says"),
+    })
+    .describe("Compact copy brief used to generate structured ad copy inside the build flow"),
+  call_to_action_type: z
+    .enum([
+      "LEARN_MORE",
+      "SHOP_NOW",
+      "SIGN_UP",
+      "DOWNLOAD",
+      "BOOK_TRAVEL",
+      "LISTEN_MUSIC",
+      "WATCH_VIDEO",
+      "GET_QUOTE",
+      "CONTACT_US",
+      "APPLY_NOW",
+      "GET_DIRECTIONS",
+      "CALL_NOW",
+      "MESSAGE_PAGE",
+      "SUBSCRIBE",
+      "BOOK_NOW",
+      "ORDER_NOW",
+      "DONATE_NOW",
+      "SAY_THANKS",
+      "SELL_NOW",
+      "SHARE",
+      "OPEN_LINK",
+      "LIKE_PAGE",
+      "FOLLOW_PAGE",
+      "FOLLOW_USER",
+      "REQUEST_TIME",
+      "VISIT_PAGES_FEED",
+      "USE_APP",
+      "PLAY_GAME",
+      "INSTALL_APP",
+      "USE_MOBILE_APP",
+      "INSTALL_MOBILE_APP",
+      "OPEN_MOVIES",
+      "AUDIO_CALL",
+      "VIDEO_CALL",
+      "GET_OFFER",
+      "GET_OFFER_VIEW",
+      "BUY_NOW",
+      "ADD_TO_CART",
+      "SELL",
+      "GIFT_WRAP",
+      "MAKE_AN_OFFER",
+    ])
+    .optional()
+    .default("SHOP_NOW")
+    .describe("Call to action button type"),
+  status: z
+    .enum(["ACTIVE", "PAUSED"])
+    .optional()
+    .default("PAUSED")
+    .describe("Initial status for campaign, ad set, and ad"),
+  special_ad_categories: z
+    .array(z.string())
+    .optional()
+    .default(["NONE"])
+    .describe("Special ad categories for campaign creation"),
+  publisher_platforms: z
+    .array(z.string())
+    .optional()
+    .default(["facebook", "instagram"])
+    .describe("Publisher platforms to target"),
+});
+
+export const RunStructuredAdBuildSchema = z.object({
+  builds: z
+    .array(StructuredAdBuildItemSchema)
+    .min(1)
+    .describe("One or more deterministic Meta ad builds to run"),
+});
 export const PreviewAdSchema = z.object({
   creative_id: z.string().describe("Creative ID to preview"),
   ad_format: z
@@ -906,10 +1067,10 @@ export const CreativeValidationEnhancedSchema = z.object({
       "Destination URL where users will be directed when clicking the ad"
     ),
   description: z.string().optional().describe("Additional description text"),
-  instagram_actor_id: z
+  instagram_user_id: z
     .string()
     .optional()
-    .describe("Instagram account ID for cross-posting"),
+    .describe("Instagram user ID for the creative identity"),
   adlabels: z
     .array(z.string())
     .optional()
@@ -1002,6 +1163,10 @@ export type EstimateAudienceSizeParams = z.infer<
 >;
 export type ListCreativesParams = z.infer<typeof ListCreativesSchema>;
 export type CreateAdCreativeParams = z.infer<typeof CreateAdCreativeSchema>;
+export type StructuredAdBuildItemParams = z.infer<typeof StructuredAdBuildItemSchema>;
+export type RunStructuredAdBuildParams = z.infer<typeof RunStructuredAdBuildSchema>;
+export type StructuredAdCopyContextParams =
+  StructuredAdBuildItemParams["copy_context"];
 export type PreviewAdParams = z.infer<typeof PreviewAdSchema>;
 export type GenerateAuthUrlParams = z.infer<typeof GenerateAuthUrlSchema>;
 export type ExchangeCodeParams = z.infer<typeof ExchangeCodeSchema>;
