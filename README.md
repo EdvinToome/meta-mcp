@@ -86,7 +86,7 @@ This repo now also exposes a Claude marketplace at `.claude-plugin/marketplace.j
 One-command installer for Claude Code Desktop:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/EdvinToome/meta-mcp/refs/heads/main/scripts/install-claude-desktop.sh | bash -s -- --project /absolute/path/to/project
+curl -fsSL https://raw.githubusercontent.com/EdvinToome/meta-mcp/main/scripts/install-claude-desktop.sh | bash -s -- --project /absolute/path/to/project
 ```
 
 If you omit the flags below, the installer asks for them interactively:
@@ -129,7 +129,7 @@ npm run setup:codex-plugin
 Or use the curl installer directly:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/EdvinToome/meta-mcp/refs/heads/main/scripts/install-codex-plugin.sh | bash
+curl -fsSL https://raw.githubusercontent.com/EdvinToome/meta-mcp/main/scripts/install-codex-plugin.sh | bash
 ```
 
 That installer:
