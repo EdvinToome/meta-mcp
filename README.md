@@ -86,10 +86,10 @@ This repo now also exposes a Claude marketplace at `.claude-plugin/marketplace.j
 One-command installer for Claude Code Desktop:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/EdvinToome/meta-mcp/main/scripts/install-claude-desktop.sh | bash -s -- --project /absolute/path/to/project
+curl -fsSL https://raw.githubusercontent.com/EdvinToome/meta-mcp/refs/heads/main/scripts/install-claude-desktop.sh | bash -s -- --project /absolute/path/to/project
 ```
 
-Optional flags:
+If you omit the flags below, the installer asks for them interactively:
 - `--meta-token <token>`
 - `--openai-key <key>`
 - `--site-profiles-file /absolute/path/to/site-profiles.local.json`

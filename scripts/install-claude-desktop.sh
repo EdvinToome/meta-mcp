@@ -32,6 +32,8 @@ Options:
   --force                         Overwrite existing project-local Meta MCP files
   --dry-run                       Print actions without mutating Claude/plugin state or files
   -h, --help                      Show this help
+
+If token or file paths are omitted, the installer prompts for them.
 EOF
 }
 
@@ -48,6 +50,10 @@ need_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"
 }
 
+can_prompt() {
+  [[ -r /dev/tty ]]
+}
+
 run_cmd() {
   if [[ "$DRY_RUN" -eq 1 ]]; then
     printf '[dry-run] %s\n' "$*"
@@ -60,8 +66,25 @@ run_cmd() {
 prompt_secret() {
   local prompt="$1"
   local value
-  read -r -s -p "$prompt" value
-  printf '\n' >&2
+  can_prompt || die "Cannot prompt for input here. Pass the value with a flag instead."
+  read -r -s -p "$prompt" value </dev/tty
+  printf '\n' >/dev/tty
+  printf '%s' "$value"
+}
+
+prompt_value() {
+  local prompt="$1"
+  local value
+  can_prompt || die "Cannot prompt for input here. Pass the value with a flag instead."
+  read -r -p "$prompt" value </dev/tty
+  printf '%s' "$value"
+}
+
+prompt_optional_path() {
+  local prompt="$1"
+  local value
+  can_prompt || return 0
+  read -r -p "$prompt" value </dev/tty
   printf '%s' "$value"
 }
 
@@ -108,9 +131,7 @@ write_env_file() {
     return
   fi
 
-  if [[ -z "$META_ACCESS_TOKEN" ]]; then
-    META_ACCESS_TOKEN="$(prompt_secret 'META_ACCESS_TOKEN: ')"
-  fi
+  [[ -n "$META_ACCESS_TOKEN" ]] || die "META_ACCESS_TOKEN is required."
 
   mkdir -p "$(dirname "$target_path")"
   node -e '
@@ -242,6 +263,24 @@ done
 need_cmd claude
 need_cmd curl
 need_cmd node
+
+if [[ "$DRY_RUN" -ne 1 ]]; then
+  if [[ -z "$META_ACCESS_TOKEN" ]]; then
+    META_ACCESS_TOKEN="$(prompt_secret 'META_ACCESS_TOKEN: ')"
+  fi
+
+  if [[ -z "$OPENAI_API_KEY_VALUE" && -z "${OPENAI_API_KEY:-}" ]]; then
+    OPENAI_API_KEY_VALUE="$(prompt_secret 'OPENAI_API_KEY (optional, press Enter to skip): ')"
+  fi
+
+  if [[ -z "$SITE_PROFILES_FILE" ]]; then
+    SITE_PROFILES_FILE="$(prompt_optional_path 'Existing site-profiles.local.json path (optional, press Enter to use template): ')"
+  fi
+
+  if [[ -z "$BUSINESS_RULES_FILE" ]]; then
+    BUSINESS_RULES_FILE="$(prompt_optional_path 'Existing BUSINESS_RULES.local.md path (optional, press Enter to use template): ')"
+  fi
+fi
 
 PROJECT_DIR="$(cd "$PROJECT_DIR" && pwd)"
 [[ -d "$PROJECT_DIR" ]] || die "Project directory does not exist: $PROJECT_DIR"
