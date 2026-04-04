@@ -201,6 +201,41 @@ function runtimePackageJson() {
   };
 }
 
+function ensureRepoBuild() {
+  const buildPath = path.join(repoRoot, "build", "index.js");
+  if (fs.existsSync(buildPath)) {
+    return;
+  }
+
+  const installResult = spawnSync(
+    "npm",
+    ["ci", "--no-audit", "--no-fund"],
+    {
+      cwd: repoRoot,
+      stdio: "inherit",
+    }
+  );
+
+  if (installResult.error) {
+    throw new Error("Missing npm. Install Node.js with npm and try again.");
+  }
+  if (installResult.status !== 0) {
+    throw new Error("npm ci failed while preparing the Codex plugin bundle");
+  }
+
+  const buildResult = spawnSync("npm", ["run", "build"], {
+    cwd: repoRoot,
+    stdio: "inherit",
+  });
+
+  if (buildResult.error) {
+    throw new Error("Missing npm. Install Node.js with npm and try again.");
+  }
+  if (buildResult.status !== 0) {
+    throw new Error("npm run build failed while preparing the Codex plugin bundle");
+  }
+}
+
 function installRuntimeDependencies() {
   const result = spawnSync(
     "npm",
@@ -238,6 +273,7 @@ function writeMetaEnv(envValues) {
 
 async function main() {
   removePath(pluginCachePath);
+  ensureRepoBuild();
   replaceDirectory(pluginSource, pluginTarget);
   replaceDirectory(path.join(repoRoot, "build"), path.join(pluginTarget, "build"));
   writeJson(path.join(pluginTarget, "package.json"), runtimePackageJson());
