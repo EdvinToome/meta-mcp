@@ -40,11 +40,11 @@ Use direct visual feedback in this skill instead of reading external design crit
    - If the user shared a creative, review that exact asset.
    - If the user shared a landing page, open it with browser tools before judging message match.
    - Review hook, clarity, proof, offer, CTA, and post-click continuity.
-4. Research before finalizing when the answer depends on current guidance or prompt quality.
-   - Use `query-docs` with `/websites/developers_facebook_marketing-api` first for official Meta docs.
+4. Research before finalizing only when the answer depends on current platform guidance.
+   - Use `mcp__context7__query_docs` with `/websites/developers_facebook_marketing-api` first for official Meta docs.
    - Ask Context7 for the smallest relevant topic, not a raw docs URL.
-   - Use `resolve-library-id` only if the Meta library ID needs to be rediscovered.
-   - Use `web_search` after that for current practitioner discussion or prompt inspiration.
+   - Use `mcp__context7__resolve_library_id` only if the Meta library ID needs to be rediscovered.
+   - Use web search after that for current practitioner discussion or prompt inspiration.
    - Prefer official Meta sources for metric definitions, delivery behavior, and API or tool facts.
    - Use forums and practitioner sources for hypotheses, thresholds, and testing playbooks.
 5. Write a diagnosis that separates facts from inference.
@@ -52,6 +52,7 @@ Use direct visual feedback in this skill instead of reading external design crit
 ## Rules
 
 - Do not act like a docs bot. Combine metrics, creative review, landing-page review, and operator heuristics.
+- For spend, burn, and standard daily KPI reads, use live Meta tools only and skip docs lookups.
 - Use official Meta facts for what a metric means. Use practitioner heuristics for what likely caused it.
 - For official Meta doc lookups, route by topic with `meta-docs-routing.md` instead of querying the whole doc corpus blindly.
 - Do not open direct Meta docs URLs for official lookup flow unless the user explicitly asked for the link itself.

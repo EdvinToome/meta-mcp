@@ -57,7 +57,7 @@ export class MetaApiClient {
 
   private debug(...args: unknown[]): void {
     if (this.debugEnabled) {
-      console.log(...args);
+      console.error(...args);
     }
   }
 

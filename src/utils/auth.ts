@@ -261,9 +261,9 @@ export class AuthManager {
     // Check if token is expired or expiring soon
     if (this.isTokenExpiring()) {
       try {
-        console.log("Token is expiring, attempting refresh...");
+        console.error("Token is expiring, attempting refresh...");
         const result = await this.exchangeForLongLivedToken();
-        console.log("Token refreshed successfully");
+        console.error("Token refreshed successfully");
         return result.accessToken;
       } catch (error) {
         console.error("Auto-refresh failed:", error);

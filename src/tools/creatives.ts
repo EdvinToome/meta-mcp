@@ -1354,10 +1354,10 @@ export function registerCreativeTools(
           };
         }
 
-        console.log("=== UPLOAD IMAGE FROM URL ===");
-        console.log("Account ID:", account_id);
-        console.log("Image URL:", image_url);
-        console.log("Image Name:", image_name);
+        console.error("=== UPLOAD IMAGE FROM URL ===");
+        console.error("Account ID:", account_id);
+        console.error("Image URL:", image_url);
+        console.error("Image Name:", image_name);
 
         // Use the MetaApiClient to upload the image
         const uploadResult = await metaClient.uploadImageFromUrl(
@@ -1410,8 +1410,8 @@ export function registerCreativeTools(
           ],
         };
 
-        console.log("Upload successful!");
-        console.log("===========================");
+        console.error("Upload successful!");
+        console.error("===========================");
 
         return {
           content: [
@@ -1422,9 +1422,9 @@ export function registerCreativeTools(
           ],
         };
       } catch (error) {
-        console.log("=== IMAGE UPLOAD ERROR ===");
-        console.log("Error:", error);
-        console.log("=========================");
+        console.error("=== IMAGE UPLOAD ERROR ===");
+        console.error("Error:", error);
+        console.error("=========================");
 
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error occurred";

@@ -5,9 +5,10 @@ description: Guided end-to-end Meta Ads publish flow for this repo's Meta MCP se
 
 # Meta Ads Builder
 
-Use this skill to turn a selected image into a published or paused Meta ad using this repo's local `meta` MCP server.
+Use this skill to turn a selected image into a published or paused Meta ad using this repo's local `meta-ads-mcp` MCP server.
 
 Read before acting:
+- `../../MCP_USAGE.md`
 - `site-profiles.local.json` in the current workspace if it exists
 - [`../../site-profiles.example.json`](../../site-profiles.example.json)
 - [`../../SITE_PROFILES.md`](../../SITE_PROFILES.md)
@@ -20,20 +21,20 @@ Read before acting:
 
 ## Quick Start
 
-1. Confirm the server is reachable with `mcp__meta__health_check` and inspect runtime coverage with `mcp__meta__get_capabilities`.
+1. Confirm the server is reachable with `mcp__meta_ads_mcp__health_check` and inspect runtime coverage with `mcp__meta_ads_mcp__get_capabilities`.
 2. Resolve the site profile from `site-profiles.local.json` in the current workspace by slug, label, domain, or destination URL.
 3. Resolve the selected image or attached creative.
 4. Resolve destination URL, budget, CTA, status, and optional scheduled start.
 5. If copy is needed and a target URL exists, open that URL with browser tools and extract compact verified `copy_context`.
 6. Use the `meta-ad-copy` workflow as a sub-task if the host supports sub-agents; otherwise follow that skill locally to produce `copy_context` and `copy_variants`.
-7. Prefer `mcp__meta__run_structured_ad_build` for the full website-sales flow.
+7. Prefer `mcp__meta_ads_mcp__run_structured_ad_build` for the full website-sales flow.
 8. Save `meta-ads-brief.json` and `meta-ads-result.json` in the working folder.
 
 ## Workflow
 
 ### 1. Preflight
 
-- Start by checking `mcp__meta__health_check` and `mcp__meta__get_capabilities`.
+- Start by checking `mcp__meta_ads_mcp__health_check` and `mcp__meta_ads_mcp__get_capabilities`.
 - Treat the live Meta tool registry and `tools_available` output as the source of truth.
 - Resolve the site profile before asking for raw Meta IDs.
 - If no local profiles file exists, ask the user to initialize one in the current workspace from the example template.
@@ -98,15 +99,15 @@ Persist the same structure to `meta-ads-brief.json` in the working folder.
 ### 6. Execute
 
 Preferred path:
-1. Upload the selected image with `mcp__meta__upload_creative_asset` or use `mcp__meta__upload_image_from_url`.
-2. Run `mcp__meta__run_structured_ad_build` with both `copy_context` and `copy_variants`.
+1. Upload the selected image with `mcp__meta_ads_mcp__upload_creative_asset` or use `mcp__meta_ads_mcp__upload_image_from_url`.
+2. Run `mcp__meta_ads_mcp__run_structured_ad_build` with both `copy_context` and `copy_variants`.
 
 Fallback path:
 1. Upload asset
-2. `mcp__meta__create_campaign`
-3. `mcp__meta__create_ad_set_enhanced`
-4. `mcp__meta__create_ad_creative`
-5. `mcp__meta__create_ad`
+2. `mcp__meta_ads_mcp__create_campaign`
+3. `mcp__meta_ads_mcp__create_ad_set_enhanced`
+4. `mcp__meta_ads_mcp__create_ad_creative`
+5. `mcp__meta_ads_mcp__create_ad`
 
 Structured-build defaults for website-sales flows:
 - use the selected profile for `account_id`, `page_id`, `instagram_user_id`, `pixel_id`, and `countries`

@@ -153,6 +153,8 @@ Do not invent values in these files:
 - `.claude/meta-mcp/site-profiles.local.json`
 - `.claude/meta-mcp/BUSINESS_RULES.local.md`
 
+Read `.claude/meta-mcp/MCP_USAGE.md` before running Meta analysis commands so tool routing stays consistent.
+
 The Meta access token is configured globally in Claude Code Desktop.
 This project directory only stores site profiles and business-specific rules.
 EOF
@@ -244,7 +246,7 @@ install_or_update_plugin() {
     return
   fi
 
-  run_cmd claude plugin update meta-mcp --scope "$PLUGIN_SCOPE"
+  run_cmd claude plugin update "$PLUGIN_ID" --scope "$PLUGIN_SCOPE"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -335,6 +337,9 @@ if [[ "$DRY_RUN" -ne 1 ]]; then
   TEMP_DIR="$(mktemp -d)"
   download_or_copy "plugins/meta-mcp/site-profiles.example.json" "${TEMP_DIR}/site-profiles.example.json"
   download_or_copy "plugins/meta-mcp/BUSINESS_RULES.example.md" "${TEMP_DIR}/BUSINESS_RULES.example.md"
+  download_or_copy "plugins/meta-mcp/MCP_USAGE.md" "${TEMP_DIR}/MCP_USAGE.md"
+else
+  TEMP_DIR="/tmp/meta-mcp-dry-run"
 fi
 
 log "Configuring global Claude MCP server"
@@ -352,6 +357,7 @@ META_ROOT="${PROJECT_DIR}/.claude/meta-mcp"
 SITE_PROFILES_PATH="${META_ROOT}/site-profiles.local.json"
 BUSINESS_RULES_PATH="${META_ROOT}/BUSINESS_RULES.local.md"
 README_PATH="${META_ROOT}/README.md"
+MCP_USAGE_PATH="${META_ROOT}/MCP_USAGE.md"
 GITIGNORE_PATH="${PROJECT_DIR}/.claude/.gitignore"
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
@@ -372,6 +378,8 @@ else
   copy_if_needed "${TEMP_DIR}/BUSINESS_RULES.example.md" "$BUSINESS_RULES_PATH"
 fi
 
+copy_if_needed "${TEMP_DIR}/MCP_USAGE.md" "$MCP_USAGE_PATH"
+
 write_project_readme "$README_PATH"
 ensure_gitignore_entries "$GITIGNORE_PATH"
 
@@ -383,5 +391,6 @@ log "Global Claude MCP server: meta"
 log "Next files to review:"
 log "- ${SITE_PROFILES_PATH}"
 log "- ${BUSINESS_RULES_PATH}"
+log "- ${MCP_USAGE_PATH}"
 log ""
 log "Then restart Claude Code Desktop if it was already open."

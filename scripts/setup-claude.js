@@ -158,6 +158,7 @@ Before acting on Meta Ads work, read:
 - \`.claude/meta-mcp/SITE_PROFILES.md\`
 - \`.claude/meta-mcp/BUSINESS_RULES.example.md\`
 - \`.claude/meta-mcp/AD_COPY_GUIDE.md\`
+- \`.claude/meta-mcp/MCP_USAGE.md\`
 - \`.claude/meta-mcp/skills/meta-ads-builder/SKILL.md\`
 - \`.claude/meta-mcp/skills/meta-ads-consultant/SKILL.md\`
 - \`.claude/meta-mcp/skills/meta-ads-morning-review/SKILL.md\`
@@ -220,6 +221,10 @@ function installClaudeBundle() {
   ensureLink(
     path.join(repoRoot, "AD_COPY_GUIDE.md"),
     path.join(claudeMetaRoot, "AD_COPY_GUIDE.md")
+  );
+  ensureLink(
+    path.join(repoRoot, "plugins", "meta-mcp", "MCP_USAGE.md"),
+    path.join(claudeMetaRoot, "MCP_USAGE.md")
   );
   createLocalFileIfMissing(
     path.join(repoRoot, "site-profiles.example.json"),

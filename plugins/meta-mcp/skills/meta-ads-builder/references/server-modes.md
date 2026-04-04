@@ -63,8 +63,8 @@ If helper text says one thing and the actual live tool menu says another, trust 
 
 ## Branching rule
 
-1. Call `mcp__meta__health_check`.
-2. Call `mcp__meta__get_capabilities`.
+1. Call `health_check`.
+2. Call `get_capabilities`.
 3. Check the live exposed tools and confirm whether the server can do all of the following:
    - create campaign
    - create ad set

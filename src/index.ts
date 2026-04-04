@@ -4,7 +4,7 @@ import os from "os";
 import path from "path";
 import { config } from "dotenv";
 
-config({ path: path.join(os.homedir(), ".meta-mcp", "meta.env") });
+config({ path: path.join(os.homedir(), ".meta-mcp", "meta.env"), quiet: true });
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";

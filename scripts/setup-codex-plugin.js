@@ -21,7 +21,7 @@ const marketplacePath = path.join(
   "plugins",
   "marketplace.json"
 );
-const pluginCachePath = path.join(
+const pluginCacheRoot = path.join(
   os.homedir(),
   ".codex",
   "plugins",
@@ -29,6 +29,7 @@ const pluginCachePath = path.join(
   marketplaceName,
   pluginName
 );
+const pluginCachePath = path.join(pluginCacheRoot, "local");
 const metaConfigRoot = path.join(os.homedir(), ".meta-mcp");
 const metaEnvPath = path.join(metaConfigRoot, "meta.env");
 
@@ -237,6 +238,12 @@ function ensureRepoBuild() {
 }
 
 function installRuntimeDependencies() {
+  const sourceNodeModules = path.join(repoRoot, "node_modules");
+  if (fs.existsSync(sourceNodeModules)) {
+    replaceDirectory(sourceNodeModules, path.join(pluginTarget, "node_modules"));
+    return;
+  }
+
   const result = spawnSync(
     "npm",
     ["install", "--omit=dev", "--no-audit", "--no-fund"],
@@ -272,7 +279,7 @@ function writeMetaEnv(envValues) {
 }
 
 async function main() {
-  removePath(pluginCachePath);
+  removePath(pluginCacheRoot);
   ensureRepoBuild();
   replaceDirectory(pluginSource, pluginTarget);
   replaceDirectory(path.join(repoRoot, "build"), path.join(pluginTarget, "build"));
@@ -300,6 +307,7 @@ async function main() {
   }
 
   installRuntimeDependencies();
+  replaceDirectory(pluginTarget, pluginCachePath);
 
   let wroteMetaEnv = false;
   let skippedMetaEnv = false;

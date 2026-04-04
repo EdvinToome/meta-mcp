@@ -1,12 +1,12 @@
 # Meta Docs Routing
 
-Use Context7 for official Meta docs before falling back to `web_search`.
+Use Context7 for official Meta docs before falling back to web search.
 
 - Default library ID: `/websites/developers_facebook_marketing-api`
-- Use `resolve-library-id` only if that ID stops working or you need a different Meta doc set.
-- Use `query-docs` for the official answer.
+- Use `mcp__context7__resolve_library_id` only if that ID stops working or you need a different Meta doc set.
+- Use `mcp__context7__query_docs` for the official answer.
 - Query by topic. Do not paste a Meta docs URL into the workflow unless the user explicitly asks for the link.
-- Use `web_search` after that for practitioner discussion, forum heuristics, or prompt ideas.
+- Use web search after that for practitioner discussion, forum heuristics, or prompt ideas.
 
 ## Topic Queries
 

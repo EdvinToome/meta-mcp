@@ -9,12 +9,22 @@ Use this skill when the user asks:
 - why performance dropped
 - what is wrong with CPM, CTR, CPC, CPA, CVR, ROAS, or conversion value
 - whether to scale, pause, cut, widen, narrow, duplicate, or refresh
+- what the spend or burn is for today, yesterday, or a clear recent window
 - review ad creative quality
 - compare ads, ad sets, campaigns, or time windows
 - check if the problem is the creative, audience, offer, landing page, or tracking
 - improve prompts for creative audits or Meta ad analysis
 
+Fast path for simple live reads:
+- If the user asks for a simple live metric pull such as spend, burn, impressions, clicks, CPC, CPM, CTR, or ROAS for a clear date window, do not load the full diagnosis stack.
+- Read `../../MCP_USAGE.md` first.
+- Read only `~/.meta-mcp/site-profiles.local.json` first.
+- Skip `BUSINESS_RULES.local.md`, diagnosis references, and Context7 unless the user explicitly asks what a metric means or the tool response is ambiguous.
+- Resolve the profile or account, call the Meta tool directly, and answer in plain operator language.
+- For burn or spend, default to `mcp__meta_ads_mcp__get_insights` with the narrowest field set needed, usually `fields: ["spend"]`.
+
 Read before diagnosing:
+- `../../MCP_USAGE.md`
 - `~/.meta-mcp/site-profiles.local.json` if it exists
 - `../../site-profiles.example.json`
 - `~/.meta-mcp/BUSINESS_RULES.local.md` if it exists
@@ -27,6 +37,9 @@ Use direct visual feedback in this skill instead of reading external design crit
 
 ## Workflow
 
+0. Choose the path.
+   - If this is a simple live read, use the fast path and stop after the data pull.
+   - If this is a real diagnosis, continue with the full workflow below.
 1. Resolve the decision context.
    - What is the business goal?
    - Which KPI matters most?
@@ -41,10 +54,10 @@ Use direct visual feedback in this skill instead of reading external design crit
    - If the user shared a landing page, open it with browser tools before judging message match.
    - Review hook, clarity, proof, offer, CTA, and post-click continuity.
 4. Research before finalizing when the answer depends on current guidance or prompt quality.
-   - Use `query-docs` with `/websites/developers_facebook_marketing-api` first for official Meta docs.
+   - Use `mcp__context7__query_docs` with `/websites/developers_facebook_marketing-api` first for official Meta docs.
    - Ask Context7 for the smallest relevant topic, not a raw docs URL.
-   - Use `resolve-library-id` only if the Meta library ID needs to be rediscovered.
-   - Use `web_search` after that for current practitioner discussion or prompt inspiration.
+   - Use `mcp__context7__resolve_library_id` only if the Meta library ID needs to be rediscovered.
+   - Use web search after that for current practitioner discussion or prompt inspiration.
    - Prefer official Meta sources for metric definitions, delivery behavior, and API or tool facts.
    - Use forums and practitioner sources for hypotheses, thresholds, and testing playbooks.
 5. Write a diagnosis that separates facts from inference.
@@ -52,8 +65,10 @@ Use direct visual feedback in this skill instead of reading external design crit
 ## Rules
 
 - Do not act like a docs bot. Combine metrics, creative review, landing-page review, and operator heuristics.
-- Use the Meta Ads MCP tools directly. Do not replace `health_check`, `get_ad_accounts`, `get_insights`, `list_ads`, `compare_performance`, `export_insights`, or `get_attribution_data` with shell commands, raw Graph API calls, or `list_mcp_resources`.
+- Use the Meta Ads MCP tools directly. In Codex this plugin exposes them under the `mcp__meta_ads_mcp__...` namespace. Do not replace `health_check`, `get_ad_accounts`, `get_insights`, `list_ads`, `compare_performance`, `export_insights`, or `get_attribution_data` with shell commands, raw Graph API calls, or `list_mcp_resources`.
 - If the Meta Ads MCP tools are missing in the current session, stop and say the Meta Ads MCP server is not loaded correctly. Tell the user to restart Codex or reload the plugin instead of continuing with a shell-only fallback.
+- Do not query Context7 for simple live reads when the tool call already answers the question.
+- Do not load diagnosis references for simple spend or burn pulls.
 - Use official Meta facts for what a metric means. Use practitioner heuristics for what likely caused it.
 - For official Meta doc lookups, route by topic with `meta-docs-routing.md` instead of querying the whole doc corpus blindly.
 - Do not open direct Meta docs URLs for official lookup flow unless the user explicitly asked for the link itself.

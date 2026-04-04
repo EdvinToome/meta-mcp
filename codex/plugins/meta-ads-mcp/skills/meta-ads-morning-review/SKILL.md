@@ -8,6 +8,7 @@ description: Review yesterday's Meta ad performance for the active site profiles
 Use this skill for the daily Meta Ads performance review in this workspace.
 
 Read before reviewing:
+- `../../MCP_USAGE.md`
 - `~/.meta-mcp/site-profiles.local.json` if it exists
 - `../../site-profiles.example.json`
 
@@ -29,7 +30,7 @@ Workflow:
 6. Keep it concise, specific, and operator-friendly.
 
 Rules:
-- Prefer the native Meta tools available in this workspace.
+- Prefer the native Meta tools available in this workspace under the `mcp__meta_ads_mcp__...` namespace.
 - For reporting, use `list_ads` and `get_insights` whenever available.
 - Use the Meta Ads MCP tools directly. Do not replace them with shell commands, raw Graph API calls, or `list_mcp_resources`.
 - If the Meta Ads MCP tools are missing in the current session, stop and say the Meta Ads MCP server is not loaded correctly. Tell the user to restart Codex or reload the plugin instead of continuing with a shell-only fallback.

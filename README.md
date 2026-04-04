@@ -113,6 +113,7 @@ After installing the plugin in Claude Code:
 2. Fill `.claude/meta-mcp/site-profiles.local.json`.
 3. Fill `.claude/meta-mcp/BUSINESS_RULES.local.md`.
 4. Make sure the global Claude MCP server named `meta` is installed.
+5. Follow `.claude/meta-mcp/MCP_USAGE.md` so the agent uses Meta tools first and only queries docs when needed.
 
 ## Codex Plugin
 

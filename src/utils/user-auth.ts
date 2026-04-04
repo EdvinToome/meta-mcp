@@ -70,7 +70,7 @@ class RedisAdapter implements StorageAdapter {
       });
 
       this.client.on('connect', () => {
-        console.log('Redis connected');
+        console.error('Redis connected');
         this.isConnected = true;
       });
 
@@ -118,10 +118,10 @@ class RedisAdapter implements StorageAdapter {
 // Storage factory
 function createStorageAdapter(): StorageAdapter {
   if (process.env.REDIS_URL) {
-    console.log('Using Redis storage adapter');
+    console.error('Using Redis storage adapter');
     return new RedisAdapter();
   } else if (process.env.KV_REST_API_URL) {
-    console.log('Using Vercel KV storage adapter');
+    console.error('Using Vercel KV storage adapter');
     return new VercelKVAdapter();
   } else {
     throw new Error('No storage configuration found. Set either REDIS_URL or KV_REST_API_URL');
