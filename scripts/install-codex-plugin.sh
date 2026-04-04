@@ -13,7 +13,6 @@ Usage: install-codex-plugin.sh [options]
 Installs the Meta Ads Codex plugin bundle and bootstraps missing local Meta config.
 
 Options:
-  --force          Replace the installed Codex plugin bundle and missing local files
   -h, --help       Show this help
 
 If you run this script from a local clone, it uses the repo checkout directly.
@@ -45,6 +44,7 @@ fi
 
 need_cmd git
 need_cmd node
+need_cmd npm
 
 temp_dir="$(mktemp -d 2>/dev/null || mktemp -d -t meta-mcp)"
 cleanup() {

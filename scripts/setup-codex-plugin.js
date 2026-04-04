@@ -4,6 +4,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import readline from "readline";
+import { spawnSync } from "child_process";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -20,11 +21,16 @@ const marketplacePath = path.join(
   "plugins",
   "marketplace.json"
 );
+const pluginCachePath = path.join(
+  os.homedir(),
+  ".codex",
+  "plugins",
+  "cache",
+  marketplaceName,
+  pluginName
+);
 const metaConfigRoot = path.join(os.homedir(), ".meta-mcp");
 const metaEnvPath = path.join(metaConfigRoot, "meta.env");
-
-const args = process.argv.slice(2);
-const force = args.includes("--force");
 
 function ensureDirectory(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
@@ -34,7 +40,21 @@ function getPrompt(rl, query) {
   return new Promise((resolve) => rl.question(query, resolve));
 }
 
+function canOpenTty() {
+  try {
+    const fd = fs.openSync("/dev/tty", "r");
+    fs.closeSync(fd);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function removePath(targetPath) {
+  if (!fs.existsSync(targetPath)) {
+    return;
+  }
+
   const stat = fs.lstatSync(targetPath);
   if (stat.isSymbolicLink() || stat.isFile()) {
     fs.unlinkSync(targetPath);
@@ -43,15 +63,12 @@ function removePath(targetPath) {
   fs.rmSync(targetPath, { recursive: true, force: true });
 }
 
-function copyDirectory(source, target) {
-  if (fs.existsSync(target)) {
-    if (!force) {
-      return;
-    }
-
-    removePath(target);
+function replaceDirectory(source, target) {
+  if (!fs.existsSync(source)) {
+    throw new Error(`Missing source directory: ${source}`);
   }
 
+  removePath(target);
   ensureDirectory(path.dirname(target));
   fs.cpSync(source, target, { recursive: true });
 }
@@ -168,6 +185,40 @@ function ensureMetaConfig() {
   };
 }
 
+function runtimePackageJson() {
+  const rootPackage = JSON.parse(
+    fs.readFileSync(path.join(repoRoot, "package.json"), "utf8")
+  );
+
+  return {
+    name: pluginName,
+    private: true,
+    type: rootPackage.type,
+    version: rootPackage.version,
+    description: rootPackage.description,
+    engines: rootPackage.engines,
+    dependencies: rootPackage.dependencies,
+  };
+}
+
+function installRuntimeDependencies() {
+  const result = spawnSync(
+    "npm",
+    ["install", "--omit=dev", "--no-audit", "--no-fund"],
+    {
+      cwd: pluginTarget,
+      stdio: "inherit",
+    }
+  );
+
+  if (result.error) {
+    throw new Error("Missing npm. Install Node.js with npm and try again.");
+  }
+  if (result.status !== 0) {
+    throw new Error("npm install failed for the Codex plugin runtime");
+  }
+}
+
 function writeMetaEnv(envValues) {
   const lines = [`META_ACCESS_TOKEN=${JSON.stringify(envValues.META_ACCESS_TOKEN)}`];
 
@@ -186,7 +237,10 @@ function writeMetaEnv(envValues) {
 }
 
 async function main() {
-  copyDirectory(pluginSource, pluginTarget);
+  removePath(pluginCachePath);
+  replaceDirectory(pluginSource, pluginTarget);
+  replaceDirectory(path.join(repoRoot, "build"), path.join(pluginTarget, "build"));
+  writeJson(path.join(pluginTarget, "package.json"), runtimePackageJson());
   writeMarketplace();
   const created = ensureMetaConfig();
 
@@ -201,41 +255,54 @@ async function main() {
   const existingBusinessId =
     process.env.META_BUSINESS_ID ||
     readEnvValue(created.existingMetaEnv, "META_BUSINESS_ID");
+  const ttyAvailable = canOpenTty();
+
+  if (!fs.existsSync(metaEnvPath) && !existingToken && !ttyAvailable) {
+    throw new Error(
+      "Missing Meta access token. Set META_ACCESS_TOKEN or run the installer from an interactive terminal."
+    );
+  }
+
+  installRuntimeDependencies();
 
   let wroteMetaEnv = false;
   let skippedMetaEnv = false;
 
   if (!fs.existsSync(metaEnvPath)) {
-    const ttyInput = fs.createReadStream("/dev/tty");
-    const ttyOutput = fs.createWriteStream("/dev/tty");
-    const rl = readline.createInterface({
-      input: ttyInput,
-      output: ttyOutput,
-    });
-
     let accessToken = existingToken;
-    if (!accessToken) {
-      accessToken = "";
-      while (!accessToken) {
-        accessToken = (await getPrompt(rl, "Meta Access Token: ")).trim();
-      }
-    }
-
     let appId = existingAppId;
     let appSecret = existingAppSecret;
     let businessId = existingBusinessId;
 
-    if (!appId) {
-      appId = (await getPrompt(rl, "Meta App ID (optional): ")).trim();
-    }
-    if (!appSecret) {
-      appSecret = (await getPrompt(rl, "Meta App Secret (optional): ")).trim();
-    }
-    if (!businessId) {
-      businessId = (await getPrompt(rl, "Meta Business ID (optional): ")).trim();
-    }
+    if (ttyAvailable) {
+      const ttyInput = fs.createReadStream("/dev/tty");
+      const ttyOutput = fs.createWriteStream("/dev/tty");
+      const rl = readline.createInterface({
+        input: ttyInput,
+        output: ttyOutput,
+      });
 
-    rl.close();
+      if (!accessToken) {
+        accessToken = "";
+        while (!accessToken) {
+          accessToken = (await getPrompt(rl, "Meta Access Token: ")).trim();
+        }
+      }
+
+      if (!appId) {
+        appId = (await getPrompt(rl, "Meta App ID (optional): ")).trim();
+      }
+      if (!appSecret) {
+        appSecret = (await getPrompt(rl, "Meta App Secret (optional): ")).trim();
+      }
+      if (!businessId) {
+        businessId = (await getPrompt(rl, "Meta Business ID (optional): ")).trim();
+      }
+
+      rl.close();
+      ttyInput.close();
+      ttyOutput.close();
+    }
 
     writeMetaEnv({
       META_ACCESS_TOKEN: accessToken,
@@ -243,8 +310,6 @@ async function main() {
       META_APP_SECRET: appSecret,
       META_BUSINESS_ID: businessId,
     });
-    ttyInput.close();
-    ttyOutput.close();
     wroteMetaEnv = true;
   } else {
     skippedMetaEnv = true;
@@ -261,6 +326,7 @@ async function main() {
   console.log("✅ Installed Meta Ads MCP Codex plugin");
   console.log(`Plugin source: ${pluginSource}`);
   console.log(`Plugin target: ${pluginTarget}`);
+  console.log(`Plugin cache: ${pluginCachePath}`);
   console.log(`Marketplace: ${marketplacePath}`);
   console.log(`Meta config: ${metaConfigRoot}`);
   if (wroteMetaEnv) {

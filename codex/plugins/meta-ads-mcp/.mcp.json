@@ -1,10 +1,9 @@
 {
   "mcpServers": {
     "meta": {
-      "command": "npx",
+      "command": "node",
       "args": [
-        "-y",
-        "@edvintoome/meta-mcp"
+        "./scripts/launch-meta-server.js"
       ]
     }
   }

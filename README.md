@@ -136,13 +136,7 @@ That installer:
 - copies `codex/plugins/meta-ads-mcp` into `~/.codex/plugins/meta-ads-mcp`
 - writes `~/.agents/plugins/marketplace.json`
 - keeps the local runtime config under `~/.meta-mcp`
-- relies on the plugin bundle's `.mcp.json` to launch the `meta` MCP server
-
-If you are using the published package instead of a clone, you can also install it with:
-
-```bash
-npx -y @edvintoome/meta-mcp install-codex-plugin
-```
+- stages the local Meta runtime into the plugin bundle and launches the `meta` MCP server from there
 
 ## Codex + Meta Skills
 
@@ -151,6 +145,7 @@ This repo ships repo-local skills under `skills/`.
 Use `npm run setup:codex-plugin` to install the Codex plugin bundle and bootstrap any missing local Meta config:
 - copies `codex/plugins/meta-ads-mcp` into `~/.codex/plugins/meta-ads-mcp`
 - writes `~/.agents/plugins/marketplace.json`
+- stages `build/` and the runtime npm deps into `~/.codex/plugins/meta-ads-mcp`
 - creates `~/.meta-mcp/meta.env`, `site-profiles.local.json`, and `BUSINESS_RULES.local.md` only when they are missing
 - keeps the bundled Meta skills and commands inside the plugin bundle so Codex can load them directly
 
@@ -255,12 +250,6 @@ The installer uses a local source setup:
 - Codex plugin bundle target: `~/.codex/plugins/meta-ads-mcp`
 - MCP server name: `meta`
 - local Meta config: `~/.meta-mcp/*`
-
-If you already have different skills at those targets, re-run with `--force` to replace them:
-
-```bash
-npm run setup:codex-plugin -- --force
-```
 
 ### Claude Code Setup
 
