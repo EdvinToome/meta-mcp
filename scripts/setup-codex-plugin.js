@@ -206,9 +206,11 @@ async function main() {
   let skippedMetaEnv = false;
 
   if (!fs.existsSync(metaEnvPath)) {
+    const ttyInput = fs.createReadStream("/dev/tty");
+    const ttyOutput = fs.createWriteStream("/dev/tty");
     const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
+      input: ttyInput,
+      output: ttyOutput,
     });
 
     let accessToken = existingToken;
@@ -241,6 +243,8 @@ async function main() {
       META_APP_SECRET: appSecret,
       META_BUSINESS_ID: businessId,
     });
+    ttyInput.close();
+    ttyOutput.close();
     wroteMetaEnv = true;
   } else {
     skippedMetaEnv = true;
