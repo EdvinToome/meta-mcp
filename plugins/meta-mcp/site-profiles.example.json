@@ -1,0 +1,19 @@
+{
+  "profiles": [
+    {
+      "slug": "example-store-ee",
+      "label": "Example Store Estonia",
+      "brand_name": "Example Store",
+      "language": "Estonian",
+      "country": "Estonia",
+      "status": "draft",
+      "account_id": "act_1234567890",
+      "page_id": "1234567890",
+      "instagram_user_id": "17841400000000000",
+      "pixel_id": "1234567890",
+      "domain": "example-store.ee",
+      "default_url": "https://example-store.ee",
+      "countries": ["EE"]
+    }
+  ]
+}

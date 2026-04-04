@@ -1,0 +1,6 @@
+{
+  "env": {
+    "META_ACCESS_TOKEN": "replace_me",
+    "OPENAI_API_KEY": "optional_for_structured_copy"
+  }
+}

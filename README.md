@@ -79,6 +79,31 @@ Create the local runtime files with:
 npm run init:workspace
 ```
 
+## Claude Marketplace
+
+This repo now also exposes a Claude marketplace at `.claude-plugin/marketplace.json` and a self-contained Claude plugin at `plugins/meta-mcp`.
+
+To test the marketplace locally in Claude Code:
+
+```bash
+claude plugin validate .
+claude plugin marketplace add .
+```
+
+To install from GitHub after pushing this repo:
+
+```text
+/plugin marketplace add https://github.com/EdvinToome/meta-mcp
+/plugin install meta-mcp@meta-mcp-marketplace
+```
+
+After installing the plugin in Claude Code:
+1. Run `/meta-mcp-init` once per project.
+2. Fill `.claude/meta-mcp/mcp-env.local.json`.
+3. Fill `.claude/meta-mcp/site-profiles.local.json`.
+4. Fill `.claude/meta-mcp/BUSINESS_RULES.local.md`.
+5. Set `OPENAI_API_KEY` in `mcp-env.local.json` only if you want structured ad-copy generation.
+
 ## Codex Plugin
 
 Codex plugin discovery now uses the standard repo-local layout:

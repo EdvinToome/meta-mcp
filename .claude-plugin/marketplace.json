@@ -1,0 +1,17 @@
+{
+  "name": "meta-mcp-marketplace",
+  "owner": {
+    "name": "Edvin Toome",
+    "url": "https://github.com/EdvinToome"
+  },
+  "metadata": {
+    "displayName": "Meta Ads MCP",
+    "description": "Claude Code marketplace for Meta Ads publishing, reporting, and diagnosis workflows."
+  },
+  "plugins": [
+    {
+      "name": "meta-mcp",
+      "source": "./plugins/meta-mcp"
+    }
+  ]
+}
