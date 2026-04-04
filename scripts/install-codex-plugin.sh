@@ -2,8 +2,9 @@
 
 set -euo pipefail
 
-PACKAGE_NAME="${PACKAGE_NAME:-@edvintoome/meta-mcp}"
-INSTALL_COMMAND="${INSTALL_COMMAND:-install-codex-plugin}"
+REPO_SLUG="${REPO_SLUG:-EdvinToome/meta-mcp}"
+REPO_REF="${REPO_REF:-main}"
+REPO_URL="https://github.com/${REPO_SLUG}.git"
 
 usage() {
   cat <<'EOF'
@@ -16,7 +17,7 @@ Options:
   -h, --help       Show this help
 
 If you run this script from a local clone, it uses the repo checkout directly.
-If you run it from curl, it falls back to the published npm package.
+If you run it from curl, it clones the GitHub repo and runs the same installer from that checkout.
 EOF
 }
 
@@ -42,5 +43,14 @@ if [[ -n "${BASH_SOURCE[0]:-}" && -f "${BASH_SOURCE[0]}" ]]; then
   fi
 fi
 
-need_cmd npx
-exec npx -y "${PACKAGE_NAME}" "${INSTALL_COMMAND}" "$@"
+need_cmd git
+need_cmd node
+
+temp_dir="$(mktemp -d 2>/dev/null || mktemp -d -t meta-mcp)"
+cleanup() {
+  rm -rf "$temp_dir"
+}
+trap cleanup EXIT
+
+git clone --depth 1 --branch "${REPO_REF}" "${REPO_URL}" "$temp_dir" >/dev/null
+exec node "${temp_dir}/scripts/setup-codex-plugin.js" "$@"
