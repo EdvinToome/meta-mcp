@@ -17,12 +17,12 @@
     "instagram-ads",
     "codex-plugin"
   ],
-  "skills": "./codex/plugins/meta-ads-mcp/skills/",
-  "mcpServers": "./codex/plugins/meta-ads-mcp/.mcp.json",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Meta Ads MCP",
     "shortDescription": "Publish, review, and diagnose Meta ads with saved site profiles.",
-    "longDescription": "Bundles the Meta Ads MCP server with profile-aware builder, consultant, morning review, and ad copy workflows for Codex.",
+    "longDescription": "Bundles the Meta Ads MCP workflows for Codex with profile-aware builder, consultant, morning review, and ad copy skills.",
     "developerName": "Edvin Toome",
     "category": "Productivity",
     "capabilities": [

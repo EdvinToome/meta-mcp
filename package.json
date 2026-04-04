@@ -21,7 +21,6 @@
     "vercel-build": "npm run build",
     "setup": "node scripts/setup-mcp.js",
     "setup:mcp": "node scripts/setup-mcp.js",
-    "setup:codex": "node scripts/setup-codex.js",
     "setup:codex-plugin": "node scripts/setup-codex-plugin.js",
     "setup:claude": "node scripts/setup-claude.js",
     "init:workspace": "node scripts/init-workspace-config.js",
@@ -33,6 +32,7 @@
   "license": "MIT",
   "files": [
     "build",
+    "codex",
     "skills",
     "plugins",
     "examples",
@@ -41,7 +41,6 @@
     ".claude",
     ".claude-plugin",
     ".mcp.json",
-    "plugins/meta-mcp/mcp-env.example.json",
     "AGENTS.md",
     "CLAUDE.md",
     "AD_COPY_GUIDE.md",
@@ -79,7 +78,6 @@
     "dotenv": "^17.2.3",
     "jose": "^6.1.3",
     "node-fetch": "^3.3.2",
-    "openai": "^6.33.0",
     "redis": "^5.10.0",
     "sharp": "^0.34.4",
     "zod": "^3.25.76"

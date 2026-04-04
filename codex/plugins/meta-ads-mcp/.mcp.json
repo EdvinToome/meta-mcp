@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "meta": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@edvintoome/meta-mcp"
+      ]
+    }
+  }
+}

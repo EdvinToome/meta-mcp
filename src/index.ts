@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 
+import os from "os";
+import path from "path";
 import { config } from "dotenv";
-config({ path: ".env.local" }); // Load environment variables from .env.local file
+
+config({ path: path.join(os.homedir(), ".meta-mcp", "meta.env") });
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
