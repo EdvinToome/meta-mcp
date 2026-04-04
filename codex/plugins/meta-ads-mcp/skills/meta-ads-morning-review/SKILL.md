@@ -31,6 +31,8 @@ Workflow:
 Rules:
 - Prefer the native Meta tools available in this workspace.
 - For reporting, use `list_ads` and `get_insights` whenever available.
+- Use the Meta Ads MCP tools directly. Do not replace them with shell commands, raw Graph API calls, or `list_mcp_resources`.
+- If the Meta Ads MCP tools are missing in the current session, stop and say the Meta Ads MCP server is not loaded correctly. Tell the user to restart Codex or reload the plugin instead of continuing with a shell-only fallback.
 - Do not use shell commands for Meta API operations.
 - Do not invent profiles, IDs, domains, geo targets, or campaign facts.
 - Do not mention Meta billing or payment issues.

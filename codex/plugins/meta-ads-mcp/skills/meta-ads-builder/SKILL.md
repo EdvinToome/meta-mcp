@@ -125,6 +125,8 @@ Write `meta-ads-result.json` in the working folder with:
 ## Rules
 
 - Prefer saved site profiles over manually typed Meta IDs.
+- Use the Meta Ads MCP tools directly. Do not replace `health_check`, `get_capabilities`, `get_ad_accounts`, `upload_creative_asset`, `upload_image_from_url`, `run_structured_ad_build`, `create_campaign`, `create_ad_set_enhanced`, `create_ad_creative`, or `create_ad` with shell commands or raw Graph API calls.
+- If the Meta Ads MCP tools are missing in the current session, stop and say the Meta Ads MCP server is not loaded correctly. Tell the user to restart Codex or reload the plugin instead of continuing with a shell-only fallback.
 - Never invent `account_id`, `page_id`, `instagram_user_id`, `pixel_id`, `countries`, or `domain`.
 - A paused request still means full build: campaign, ad set, creative, and ad.
 - If the campaign already owns the budget, do not also set an ad set budget.

@@ -52,6 +52,8 @@ Use direct visual feedback in this skill instead of reading external design crit
 ## Rules
 
 - Do not act like a docs bot. Combine metrics, creative review, landing-page review, and operator heuristics.
+- Use the Meta Ads MCP tools directly. Do not replace `health_check`, `get_ad_accounts`, `get_insights`, `list_ads`, `compare_performance`, `export_insights`, or `get_attribution_data` with shell commands, raw Graph API calls, or `list_mcp_resources`.
+- If the Meta Ads MCP tools are missing in the current session, stop and say the Meta Ads MCP server is not loaded correctly. Tell the user to restart Codex or reload the plugin instead of continuing with a shell-only fallback.
 - Use official Meta facts for what a metric means. Use practitioner heuristics for what likely caused it.
 - For official Meta doc lookups, route by topic with `meta-docs-routing.md` instead of querying the whole doc corpus blindly.
 - Do not open direct Meta docs URLs for official lookup flow unless the user explicitly asked for the link itself.
