@@ -16,6 +16,7 @@ Purpose:
 - Reuse the bundled guide for copy frameworks, testing logic, and Meta format guidance.
 - Add the local project rules from the optional local business rules file.
 - Generate either final Meta ad copy or a compact copy context for the structured publish flow.
+- Return explicit `copy_variants` for the structured publish flow instead of relying on server-side copy generation.
 - Use verified facts from the page.
 - Use the selected creative only as supporting context.
 - Follow `AD_COPY_GUIDE.md` as the base guide and `.claude/meta-mcp/BUSINESS_RULES.local.md` as the business-specific overlay when present.
@@ -36,10 +37,19 @@ Workflow:
    - age fit if verified
    - CTA direction
 5. Review the selected creative as supporting context only.
-6. If the task is a structured publish, return `copy_context` instead of finished copy.
+6. If the task is a structured publish, return:
+   - `copy_context`
+   - `copy_variants.parents`
+   - `copy_variants.teachers`
+   - `copy_variants.general`
 7. `copy_context` must include `brand_name`, `language`, `country`, `product_name`, page type, verified `product_facts`, and a short `creative_description`.
-8. If the task is copy-only, write copy using `AD_COPY_GUIDE.md` plus the local business rules file when present.
-9. Validate the output before finalizing.
+8. `copy_variants` must contain:
+   - `headline`
+   - `primary_text`
+   for `parents`, `teachers`, and `general`
+9. If the host supports sub-agents, this skill is the preferred sub-task for copy generation inside the publish workflow.
+10. If the task is copy-only, write copy using `AD_COPY_GUIDE.md` plus the local business rules file when present.
+11. Validate the output before finalizing.
 
 Rules:
 - Do not invent claims, prices, counts, reviews, expert credentials, outcomes, testimonials, or audience fit.

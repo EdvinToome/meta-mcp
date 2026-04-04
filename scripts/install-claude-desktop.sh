@@ -5,12 +5,11 @@ set -euo pipefail
 REPO_SLUG="${REPO_SLUG:-EdvinToome/meta-mcp}"
 REPO_REF="${REPO_REF:-main}"
 MARKETPLACE_SOURCE="${MARKETPLACE_SOURCE:-https://github.com/${REPO_SLUG}}"
-RAW_BASE_URL="${RAW_BASE_URL:-https://raw.githubusercontent.com/${REPO_SLUG}/${REPO_REF}}"
+RAW_BASE_URL="${RAW_BASE_URL:-https://raw.githubusercontent.com/${REPO_SLUG}/refs/heads/${REPO_REF}}"
 PLUGIN_ID="meta-mcp@meta-mcp-marketplace"
 PLUGIN_SCOPE="user"
 PROJECT_DIR="$(pwd)"
 META_ACCESS_TOKEN="${META_ACCESS_TOKEN:-}"
-OPENAI_API_KEY_VALUE="${OPENAI_API_KEY:-}"
 SITE_PROFILES_FILE=""
 BUSINESS_RULES_FILE=""
 FORCE=0
@@ -20,13 +19,13 @@ usage() {
   cat <<'EOF'
 Usage: install-claude-desktop.sh [options]
 
-Sets up the Meta Ads MCP Claude Code Desktop plugin and bootstraps project-local files.
+Installs the Meta Ads Claude plugin, configures the global Claude MCP server,
+and bootstraps project-local site profiles and business rules.
 
 Options:
   --project <path>                Target project directory (default: current directory)
   --scope <scope>                 Claude plugin scope: user, project, local (default: user)
-  --meta-token <token>            Value to write into .claude/meta-mcp/mcp-env.local.json
-  --openai-key <key>              Optional value to write into the same env file
+  --meta-token <token>            Meta access token for the global Claude MCP config
   --site-profiles-file <path>     Copy a prepared site-profiles.local.json into the project
   --business-rules-file <path>    Copy a prepared BUSINESS_RULES.local.md into the project
   --force                         Overwrite existing project-local Meta MCP files
@@ -72,14 +71,6 @@ prompt_secret() {
   printf '%s' "$value"
 }
 
-prompt_value() {
-  local prompt="$1"
-  local value
-  can_prompt || die "Cannot prompt for input here. Pass the value with a flag instead."
-  read -r -p "$prompt" value </dev/tty
-  printf '%s' "$value"
-}
-
 prompt_optional_path() {
   local prompt="$1"
   local value
@@ -118,37 +109,9 @@ copy_if_needed() {
   cp "$source_path" "$target_path"
 }
 
-write_env_file() {
-  local target_path="$1"
-
-  if [[ -e "$target_path" && "$FORCE" -ne 1 ]]; then
-    log "Keeping existing ${target_path}"
-    return
-  fi
-
-  if [[ "$DRY_RUN" -eq 1 ]]; then
-    printf '[dry-run] write %s with META_ACCESS_TOKEN and optional OPENAI_API_KEY\n' "$target_path"
-    return
-  fi
-
-  [[ -n "$META_ACCESS_TOKEN" ]] || die "META_ACCESS_TOKEN is required."
-
-  mkdir -p "$(dirname "$target_path")"
-  node -e '
-    const fs = require("fs");
-    const target = process.argv[1];
-    const metaToken = process.argv[2];
-    const openaiKey = process.argv[3];
-    const payload = { env: { META_ACCESS_TOKEN: metaToken } };
-    if (openaiKey) payload.env.OPENAI_API_KEY = openaiKey;
-    fs.writeFileSync(target, JSON.stringify(payload, null, 2) + "\n");
-  ' "$target_path" "$META_ACCESS_TOKEN" "$OPENAI_API_KEY_VALUE"
-}
-
 ensure_gitignore_entries() {
   local gitignore_path="$1"
   local entries=(
-    "meta-mcp/mcp-env.local.json"
     "meta-mcp/site-profiles.local.json"
     "meta-mcp/BUSINESS_RULES.local.md"
   )
@@ -187,12 +150,80 @@ write_project_readme() {
 # Meta MCP local config
 
 Do not invent values in these files:
-- `.claude/meta-mcp/mcp-env.local.json`
 - `.claude/meta-mcp/site-profiles.local.json`
 - `.claude/meta-mcp/BUSINESS_RULES.local.md`
 
-`mcp-env.local.json` is required for the Meta MCP server used by the Claude plugin.
-`OPENAI_API_KEY` is only needed for structured ad-copy generation.
+The Meta access token is configured globally in Claude Code Desktop.
+This project directory only stores site profiles and business-specific rules.
+EOF
+}
+
+write_global_claude_mcp_config() {
+  local token="$1"
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    printf '[dry-run] write global Claude MCP config for server meta with META_ACCESS_TOKEN\n'
+    return
+  fi
+
+  node - <<'EOF' "$token"
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
+
+const token = process.argv[2];
+
+const configPath = (() => {
+  switch (process.platform) {
+    case "darwin":
+      return path.join(
+        os.homedir(),
+        "Library",
+        "Application Support",
+        "Claude",
+        "claude_desktop_config.json"
+      );
+    case "win32":
+      return path.join(
+        os.homedir(),
+        "AppData",
+        "Roaming",
+        "Claude",
+        "claude_desktop_config.json"
+      );
+    case "linux":
+      return path.join(
+        os.homedir(),
+        ".config",
+        "Claude",
+        "claude_desktop_config.json"
+      );
+    default:
+      throw new Error(`Unsupported platform: ${process.platform}`);
+  }
+})();
+
+let payload = {};
+
+if (fs.existsSync(configPath)) {
+  payload = JSON.parse(fs.readFileSync(configPath, "utf8"));
+}
+
+payload.mcpServers ||= {};
+const existingServer = payload.mcpServers.meta || {};
+const existingEnv = existingServer.env || {};
+payload.mcpServers.meta = {
+  command: "npx",
+  args: ["-y", "@edvintoome/meta-mcp"],
+  env: {
+    ...existingEnv,
+    META_ACCESS_TOKEN: token,
+  },
+};
+
+fs.mkdirSync(path.dirname(configPath), { recursive: true });
+fs.writeFileSync(configPath, `${JSON.stringify(payload, null, 2)}\n`);
+console.log(`Configured Claude MCP: ${configPath}`);
 EOF
 }
 
@@ -230,10 +261,6 @@ while [[ $# -gt 0 ]]; do
       META_ACCESS_TOKEN="$2"
       shift 2
       ;;
-    --openai-key)
-      OPENAI_API_KEY_VALUE="$2"
-      shift 2
-      ;;
     --site-profiles-file)
       SITE_PROFILES_FILE="$2"
       shift 2
@@ -269,10 +296,6 @@ if [[ "$DRY_RUN" -ne 1 ]]; then
     META_ACCESS_TOKEN="$(prompt_secret 'META_ACCESS_TOKEN: ')"
   fi
 
-  if [[ -z "$OPENAI_API_KEY_VALUE" && -z "${OPENAI_API_KEY:-}" ]]; then
-    OPENAI_API_KEY_VALUE="$(prompt_secret 'OPENAI_API_KEY (optional, press Enter to skip): ')"
-  fi
-
   if [[ -z "$SITE_PROFILES_FILE" ]]; then
     SITE_PROFILES_FILE="$(prompt_optional_path 'Existing site-profiles.local.json path (optional, press Enter to use template): ')"
   fi
@@ -284,6 +307,7 @@ fi
 
 PROJECT_DIR="$(cd "$PROJECT_DIR" && pwd)"
 [[ -d "$PROJECT_DIR" ]] || die "Project directory does not exist: $PROJECT_DIR"
+[[ -n "$META_ACCESS_TOKEN" || "$DRY_RUN" -eq 1 ]] || die "META_ACCESS_TOKEN is required"
 
 if [[ -n "$SITE_PROFILES_FILE" ]]; then
   SITE_PROFILES_FILE="$(cd "$(dirname "$SITE_PROFILES_FILE")" && pwd)/$(basename "$SITE_PROFILES_FILE")"
@@ -309,10 +333,12 @@ trap cleanup EXIT
 
 if [[ "$DRY_RUN" -ne 1 ]]; then
   TEMP_DIR="$(mktemp -d)"
-  download_or_copy "plugins/meta-mcp/mcp-env.example.json" "${TEMP_DIR}/mcp-env.example.json"
   download_or_copy "plugins/meta-mcp/site-profiles.example.json" "${TEMP_DIR}/site-profiles.example.json"
   download_or_copy "plugins/meta-mcp/BUSINESS_RULES.example.md" "${TEMP_DIR}/BUSINESS_RULES.example.md"
 fi
+
+log "Configuring global Claude MCP server"
+write_global_claude_mcp_config "$META_ACCESS_TOKEN"
 
 log "Installing/updating Claude marketplace"
 install_or_update_marketplace
@@ -323,7 +349,6 @@ install_or_update_plugin
 log "Bootstrapping project files in ${PROJECT_DIR}"
 
 META_ROOT="${PROJECT_DIR}/.claude/meta-mcp"
-ENV_PATH="${META_ROOT}/mcp-env.local.json"
 SITE_PROFILES_PATH="${META_ROOT}/site-profiles.local.json"
 BUSINESS_RULES_PATH="${META_ROOT}/BUSINESS_RULES.local.md"
 README_PATH="${META_ROOT}/README.md"
@@ -334,7 +359,6 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
 else
   mkdir -p "$META_ROOT"
 fi
-write_env_file "$ENV_PATH"
 
 if [[ -n "$SITE_PROFILES_FILE" ]]; then
   copy_if_needed "$SITE_PROFILES_FILE" "$SITE_PROFILES_PATH"
@@ -355,8 +379,8 @@ log ""
 log "Setup complete."
 log "Project: ${PROJECT_DIR}"
 log "Plugin scope: ${PLUGIN_SCOPE}"
+log "Global Claude MCP server: meta"
 log "Next files to review:"
-log "- ${ENV_PATH}"
 log "- ${SITE_PROFILES_PATH}"
 log "- ${BUSINESS_RULES_PATH}"
 log ""

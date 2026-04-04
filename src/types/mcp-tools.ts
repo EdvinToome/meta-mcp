@@ -879,7 +879,32 @@ export const StructuredAdBuildItemSchema = z.object({
         .min(1)
         .describe("Short description of what the selected creative shows or says"),
     })
-    .describe("Compact copy brief used to generate structured ad copy inside the build flow"),
+    .describe("Compact copy brief used to plan the structured ad copy before the build runs"),
+  copy_variants: z
+    .object({
+      parents: z.object({
+        headline: z.string().min(1).describe("Audience-specific headline for the parents angle"),
+        primary_text: z
+          .string()
+          .min(1)
+          .describe("Audience-specific primary text for the parents angle"),
+      }),
+      teachers: z.object({
+        headline: z.string().min(1).describe("Audience-specific headline for the teachers angle"),
+        primary_text: z
+          .string()
+          .min(1)
+          .describe("Audience-specific primary text for the teachers angle"),
+      }),
+      general: z.object({
+        headline: z.string().min(1).describe("Audience-specific headline for the general angle"),
+        primary_text: z
+          .string()
+          .min(1)
+          .describe("Audience-specific primary text for the general angle"),
+      }),
+    })
+    .describe("Explicit copy variants prepared by the agent before the structured build runs"),
   call_to_action_type: z
     .enum([
       "LEARN_MORE",

@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
 import fs from "fs";
+import os from "os";
 import path from "path";
+import readline from "readline";
 import { fileURLToPath } from "url";
 import { createLocalFileIfMissing, ensureDirectory } from "./workspace-config.js";
 
@@ -17,11 +19,41 @@ function readArg(name) {
   return index === -1 ? "" : args[index + 1] || "";
 }
 
+function getClaudeConfigPath() {
+  switch (process.platform) {
+    case "darwin":
+      return path.join(
+        os.homedir(),
+        "Library",
+        "Application Support",
+        "Claude",
+        "claude_desktop_config.json"
+      );
+    case "win32":
+      return path.join(
+        os.homedir(),
+        "AppData",
+        "Roaming",
+        "Claude",
+        "claude_desktop_config.json"
+      );
+    case "linux":
+      return path.join(
+        os.homedir(),
+        ".config",
+        "Claude",
+        "claude_desktop_config.json"
+      );
+    default:
+      throw new Error(`Unsupported platform: ${process.platform}`);
+  }
+}
+
 const projectRoot = path.resolve(readArg("--project") || process.cwd());
 const claudeMetaRoot = path.join(projectRoot, ".claude", "meta-mcp");
 const commandsRoot = path.join(projectRoot, ".claude", "commands");
 const claudePath = path.join(projectRoot, "CLAUDE.md");
-const mcpPath = path.join(projectRoot, ".mcp.json");
+const claudeConfigPath = getClaudeConfigPath();
 
 function removePath(targetPath) {
   const stat = fs.lstatSync(targetPath);
@@ -92,25 +124,32 @@ function writeManagedClaudeFile() {
   fs.writeFileSync(claudePath, output);
 }
 
-function writeMcpConfig() {
-  const payload = fs.existsSync(mcpPath)
-    ? JSON.parse(fs.readFileSync(mcpPath, "utf8"))
+function writeGlobalClaudeConfig(metaAccessToken) {
+  const payload = fs.existsSync(claudeConfigPath)
+    ? JSON.parse(fs.readFileSync(claudeConfigPath, "utf8"))
     : {};
+  const existingServer = payload.mcpServers?.meta || {};
+  const existingEnv = existingServer.env || {};
 
   payload.mcpServers ||= {};
   payload.mcpServers.meta = {
-    command: "node",
-    args: [path.join(repoRoot, "build", "index.js")],
+    command: "npx",
+    args: ["-y", "@edvintoome/meta-mcp"],
+    env: {
+      ...existingEnv,
+      META_ACCESS_TOKEN: metaAccessToken,
+    },
   };
 
-  fs.writeFileSync(mcpPath, `${JSON.stringify(payload, null, 2)}\n`);
+  ensureDirectory(path.dirname(claudeConfigPath));
+  fs.writeFileSync(claudeConfigPath, `${JSON.stringify(payload, null, 2)}\n`);
 }
 
 function writeClaudeReadme() {
   const readmePath = path.join(claudeMetaRoot, "README.md");
   const content = `# Meta MCP for Claude Code
 
-This project uses the Meta Ads MCP server from ${repoRoot}.
+This project uses the globally configured \`meta\` MCP server.
 
 Before acting on Meta Ads work, read:
 - \`.claude/meta-mcp/site-profiles.local.json\`
@@ -125,13 +164,36 @@ Before acting on Meta Ads work, read:
 - \`.claude/meta-mcp/skills/meta-ad-copy/SKILL.md\`
 
 Core rules:
-- Use the local \`meta\` MCP server for Meta API actions.
+- Use the global \`meta\` MCP server for Meta API actions.
 - Resolve site profiles before asking for raw Meta IDs.
-- Prefer \`run_structured_ad_build\` for full publish flows.
+- Prepare ad copy in the agent layer before the structured build call.
 - Use browser tools before diagnosing landing-page or creative issues.
 `;
 
   fs.writeFileSync(readmePath, content);
+}
+
+function ensureGitignoreEntries() {
+  const gitignorePath = path.join(projectRoot, ".claude", ".gitignore");
+  const entries = [
+    "meta-mcp/site-profiles.local.json",
+    "meta-mcp/BUSINESS_RULES.local.md",
+  ];
+
+  ensureDirectory(path.dirname(gitignorePath));
+  if (!fs.existsSync(gitignorePath)) {
+    fs.writeFileSync(gitignorePath, "");
+  }
+
+  const existing = fs.readFileSync(gitignorePath, "utf8").split("\n");
+  const missing = entries.filter((entry) => !existing.includes(entry));
+
+  if (missing.length === 0) {
+    return;
+  }
+
+  const next = `${existing.join("\n").trimEnd()}\n${missing.join("\n")}\n`;
+  fs.writeFileSync(gitignorePath, next.replace(/^\n/, ""));
 }
 
 function writeCommand(name, skillPath, openingLines) {
@@ -170,12 +232,12 @@ function installClaudeBundle() {
   writeClaudeReadme();
   ensureDirectory(commandsRoot);
   writeCommand("meta-ads-builder", ".claude/meta-mcp/skills/meta-ads-builder/SKILL.md", [
-    "Start by checking the local `meta` MCP server with `health_check` and `get_capabilities`.",
+    "Start by checking the global `meta` MCP server with `health_check` and `get_capabilities`.",
     "Resolve the site profile from `.claude/meta-mcp/site-profiles.local.json` before using raw Meta IDs.",
-    "Resolve the selected image or working folder, then prefer the structured build flow."
+    "Prepare `copy_context` and `copy_variants` before the structured build call."
   ]);
   writeCommand("meta-ads-consultant", ".claude/meta-mcp/skills/meta-ads-consultant/SKILL.md", [
-    "Start with live campaign data from the local `meta` MCP server.",
+    "Start with live campaign data from the global `meta` MCP server.",
     "Separate confirmed Meta facts from your consultant inference.",
     "Use browser tools before commenting on landing pages or creative."
   ]);
@@ -185,20 +247,45 @@ function installClaudeBundle() {
   ]);
   writeCommand("meta-ad-copy", ".claude/meta-mcp/skills/meta-ad-copy/SKILL.md", [
     "Resolve the site profile before drafting copy.",
-    "Keep copy operational, short, and parent-friendly for this business."
+    "Return explicit `copy_variants` when the publish flow needs structured build input."
   ]);
 }
 
-function main() {
+function getPrompt(rl, query) {
+  return new Promise((resolve) => rl.question(query, resolve));
+}
+
+async function main() {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  let metaAccessToken = process.env.META_ACCESS_TOKEN || readArg("--meta-token");
+
+  if (!metaAccessToken) {
+    metaAccessToken = (await getPrompt(rl, "Meta Access Token: ")).trim();
+  }
+
+  rl.close();
+
+  if (!metaAccessToken) {
+    throw new Error("META_ACCESS_TOKEN is required");
+  }
+
   installClaudeBundle();
   writeManagedClaudeFile();
-  writeMcpConfig();
+  writeGlobalClaudeConfig(metaAccessToken);
+  ensureGitignoreEntries();
 
   console.log("✅ Installed Meta MCP support for Claude Code");
   console.log(`Project: ${projectRoot}`);
   console.log(`Claude bundle: ${claudeMetaRoot}`);
   console.log(`Commands: ${commandsRoot}`);
-  console.log(`MCP config: ${mcpPath}`);
+  console.log(`Claude MCP config: ${claudeConfigPath}`);
 }
 
-main();
+main().catch((error) => {
+  console.error(`❌ ${error.message}`);
+  process.exit(1);
+});

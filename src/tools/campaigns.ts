@@ -584,7 +584,7 @@ export function registerCampaignTools(
 
   server.tool(
     "run_structured_ad_build",
-    "Run a deterministic full Meta build from one structured payload. This creates the campaign, dynamic creative ad set, generates structured ad copy from the provided copy context, creates the multi-variant creative, and creates the final ad together so the asset feed creative and ad set shape always match.",
+    "Run a deterministic full Meta build from one structured payload. This creates the campaign, dynamic creative ad set, uses the provided structured copy variants, creates the multi-variant creative, and creates the final ad together so the asset feed creative and ad set shape always match.",
     RunStructuredAdBuildSchema.shape,
     async (params) => runStructuredAdBuildAction(metaClient, params)
   );

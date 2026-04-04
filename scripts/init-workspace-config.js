@@ -15,7 +15,7 @@ function readArg(name) {
   return index === -1 ? "" : args[index + 1] || "";
 }
 
-const targetRoot = path.resolve(readArg("--root") || repoRoot);
+const targetRoot = path.resolve(readArg("--root") || process.cwd());
 
 function main() {
   const createdProfiles = createLocalFileIfMissing(

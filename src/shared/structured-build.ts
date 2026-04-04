@@ -4,7 +4,6 @@ import type {
   StructuredAdBuildItemParams,
 } from "../types/mcp-tools.js";
 import type { MetaToolResult } from "./meta-v1-actions.js";
-import { generateAdCopy } from "./generate-ad-copy.js";
 import {
   createAdAction,
   createAdCreativeAction,
@@ -93,7 +92,7 @@ async function runSingleBuild(
   const budgetMinor = Math.round(build.daily_budget_major * 100);
   const descriptionText = buildDeterministicDescription(build);
   const startTime = build.start_time || buildDefaultStartTime();
-  const generatedCopy = await generateAdCopy(build.copy_context);
+  const copyVariants = build.copy_variants;
   let imageHash = build.image_hash;
   let upload: Record<string, any> | undefined;
 
@@ -167,14 +166,14 @@ async function runSingleBuild(
       page_id: build.page_id,
       instagram_user_id: build.instagram_user_id,
       messages: [
-        generatedCopy.parents.primary_text,
-        generatedCopy.teachers.primary_text,
-        generatedCopy.general.primary_text,
+        copyVariants.parents.primary_text,
+        copyVariants.teachers.primary_text,
+        copyVariants.general.primary_text,
       ],
       headlines: [
-        generatedCopy.parents.headline,
-        generatedCopy.teachers.headline,
-        generatedCopy.general.headline,
+        copyVariants.parents.headline,
+        copyVariants.teachers.headline,
+        copyVariants.general.headline,
       ],
       descriptions: [descriptionText],
       image_hash: imageHash,
@@ -216,10 +215,11 @@ async function runSingleBuild(
       description: descriptionText,
       start_time: startTime,
     },
-    generated_copy: {
-      parents: generatedCopy.parents,
-      teachers: generatedCopy.teachers,
-      general: generatedCopy.general,
+    copy_context: build.copy_context,
+    copy_variants: {
+      parents: copyVariants.parents,
+      teachers: copyVariants.teachers,
+      general: copyVariants.general,
       description: descriptionText,
     },
     created: {

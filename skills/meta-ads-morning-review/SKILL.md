@@ -8,7 +8,7 @@ description: Review yesterday's Meta ad performance for the active site profiles
 Use this skill for the daily Meta Ads performance review in this workspace.
 
 Read before reviewing:
-- `../../site-profiles.local.json` if it exists
+- `site-profiles.local.json` in the current workspace if it exists
 - `../../site-profiles.example.json`
 
 Workflow:

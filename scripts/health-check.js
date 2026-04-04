@@ -81,14 +81,14 @@ function checkConfiguration() {
       return false;
     }
 
-    if (!config.mcpServers["meta-ads"]) {
-      console.log("❌ Meta Ads MCP server not configured");
+    if (!config.mcpServers.meta) {
+      console.log("❌ Meta MCP server not configured");
       console.log("   Available servers:", Object.keys(config.mcpServers));
       return false;
     }
 
-    const serverConfig = config.mcpServers["meta-ads"];
-    console.log("✅ Meta Ads MCP server configuration found");
+    const serverConfig = config.mcpServers.meta;
+    console.log("✅ Meta MCP server configuration found");
 
     // Check environment variables
     if (!serverConfig.env || !serverConfig.env.META_ACCESS_TOKEN) {
@@ -111,8 +111,8 @@ function checkConfiguration() {
   // Test server command
   console.log("\n🚀 Testing MCP server command...");
   try {
-    const command = config.mcpServers["meta-ads"].command;
-    const args = config.mcpServers["meta-ads"].args;
+    const command = config.mcpServers.meta.command;
+    const args = config.mcpServers.meta.args;
 
     console.log(`Command: ${command} ${args.join(" ")}`);
 

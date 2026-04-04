@@ -123,7 +123,7 @@ function createClaudeConfig(configPath, serverConfig) {
     existingConfig.mcpServers = {};
   }
 
-  existingConfig.mcpServers["meta-ads"] = serverConfig;
+  existingConfig.mcpServers.meta = serverConfig;
 
   // Create directory if it doesn't exist
   const configDir = path.dirname(configPath);

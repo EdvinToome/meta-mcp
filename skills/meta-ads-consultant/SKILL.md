@@ -15,9 +15,9 @@ Use this skill when the user asks:
 - improve prompts for creative audits or Meta ad analysis
 
 Read before diagnosing:
-- `../../site-profiles.local.json` if it exists
+- `site-profiles.local.json` in the current workspace if it exists
 - `../../site-profiles.example.json`
-- `../../BUSINESS_RULES.local.md` if it exists
+- `BUSINESS_RULES.local.md` in the current workspace if it exists
 - `./references/diagnosis-playbook.md`
 - `./references/meta-docs-routing.md`
 - `./references/prompt-templates.md`
