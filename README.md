@@ -83,6 +83,18 @@ npm run init:workspace
 
 This repo now also exposes a Claude marketplace at `.claude-plugin/marketplace.json` and a self-contained Claude plugin at `plugins/meta-mcp`.
 
+One-command installer for Claude Code Desktop:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/EdvinToome/meta-mcp/main/scripts/install-claude-desktop.sh | bash -s -- --project /absolute/path/to/project
+```
+
+Optional flags:
+- `--meta-token <token>`
+- `--openai-key <key>`
+- `--site-profiles-file /absolute/path/to/site-profiles.local.json`
+- `--business-rules-file /absolute/path/to/BUSINESS_RULES.local.md`
+
 To test the marketplace locally in Claude Code:
 
 ```bash

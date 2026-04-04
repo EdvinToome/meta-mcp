@@ -1,0 +1,324 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+REPO_SLUG="${REPO_SLUG:-EdvinToome/meta-mcp}"
+REPO_REF="${REPO_REF:-main}"
+MARKETPLACE_SOURCE="${MARKETPLACE_SOURCE:-https://github.com/${REPO_SLUG}}"
+RAW_BASE_URL="${RAW_BASE_URL:-https://raw.githubusercontent.com/${REPO_SLUG}/${REPO_REF}}"
+PLUGIN_ID="meta-mcp@meta-mcp-marketplace"
+PLUGIN_SCOPE="user"
+PROJECT_DIR="$(pwd)"
+META_ACCESS_TOKEN="${META_ACCESS_TOKEN:-}"
+OPENAI_API_KEY_VALUE="${OPENAI_API_KEY:-}"
+SITE_PROFILES_FILE=""
+BUSINESS_RULES_FILE=""
+FORCE=0
+DRY_RUN=0
+
+usage() {
+  cat <<'EOF'
+Usage: install-claude-desktop.sh [options]
+
+Sets up the Meta Ads MCP Claude Code Desktop plugin and bootstraps project-local files.
+
+Options:
+  --project <path>                Target project directory (default: current directory)
+  --scope <scope>                 Claude plugin scope: user, project, local (default: user)
+  --meta-token <token>            Value to write into .claude/meta-mcp/mcp-env.local.json
+  --openai-key <key>              Optional value to write into the same env file
+  --site-profiles-file <path>     Copy a prepared site-profiles.local.json into the project
+  --business-rules-file <path>    Copy a prepared BUSINESS_RULES.local.md into the project
+  --force                         Overwrite existing project-local Meta MCP files
+  --dry-run                       Print actions without mutating Claude/plugin state or files
+  -h, --help                      Show this help
+EOF
+}
+
+log() {
+  printf '%s\n' "$1"
+}
+
+die() {
+  printf 'Error: %s\n' "$1" >&2
+  exit 1
+}
+
+need_cmd() {
+  command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"
+}
+
+run_cmd() {
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    printf '[dry-run] %s\n' "$*"
+    return
+  fi
+
+  "$@"
+}
+
+prompt_secret() {
+  local prompt="$1"
+  local value
+  read -r -s -p "$prompt" value
+  printf '\n' >&2
+  printf '%s' "$value"
+}
+
+download_or_copy() {
+  local remote_path="$1"
+  local target_path="$2"
+
+  if [[ -n "${LOCAL_SOURCE_DIR:-}" ]]; then
+    cp "${LOCAL_SOURCE_DIR}/${remote_path}" "$target_path"
+    return
+  fi
+
+  curl -fsSL "${RAW_BASE_URL}/${remote_path}" -o "$target_path"
+}
+
+copy_if_needed() {
+  local source_path="$1"
+  local target_path="$2"
+
+  if [[ -e "$target_path" && "$FORCE" -ne 1 ]]; then
+    log "Keeping existing ${target_path}"
+    return
+  fi
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    printf '[dry-run] write %s from %s\n' "$target_path" "$source_path"
+    return
+  fi
+
+  mkdir -p "$(dirname "$target_path")"
+  cp "$source_path" "$target_path"
+}
+
+write_env_file() {
+  local target_path="$1"
+
+  if [[ -e "$target_path" && "$FORCE" -ne 1 ]]; then
+    log "Keeping existing ${target_path}"
+    return
+  fi
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    printf '[dry-run] write %s with META_ACCESS_TOKEN and optional OPENAI_API_KEY\n' "$target_path"
+    return
+  fi
+
+  if [[ -z "$META_ACCESS_TOKEN" ]]; then
+    META_ACCESS_TOKEN="$(prompt_secret 'META_ACCESS_TOKEN: ')"
+  fi
+
+  mkdir -p "$(dirname "$target_path")"
+  node -e '
+    const fs = require("fs");
+    const target = process.argv[1];
+    const metaToken = process.argv[2];
+    const openaiKey = process.argv[3];
+    const payload = { env: { META_ACCESS_TOKEN: metaToken } };
+    if (openaiKey) payload.env.OPENAI_API_KEY = openaiKey;
+    fs.writeFileSync(target, JSON.stringify(payload, null, 2) + "\n");
+  ' "$target_path" "$META_ACCESS_TOKEN" "$OPENAI_API_KEY_VALUE"
+}
+
+ensure_gitignore_entries() {
+  local gitignore_path="$1"
+  local entries=(
+    "meta-mcp/mcp-env.local.json"
+    "meta-mcp/site-profiles.local.json"
+    "meta-mcp/BUSINESS_RULES.local.md"
+  )
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    printf '[dry-run] ensure %s contains Meta MCP local file ignores\n' "$gitignore_path"
+    return
+  fi
+
+  mkdir -p "$(dirname "$gitignore_path")"
+  touch "$gitignore_path"
+
+  local entry
+  for entry in "${entries[@]}"; do
+    if ! grep -qxF "$entry" "$gitignore_path"; then
+      printf '%s\n' "$entry" >>"$gitignore_path"
+    fi
+  done
+}
+
+write_project_readme() {
+  local target_path="$1"
+
+  if [[ -e "$target_path" && "$FORCE" -ne 1 ]]; then
+    log "Keeping existing ${target_path}"
+    return
+  fi
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    printf '[dry-run] write %s\n' "$target_path"
+    return
+  fi
+
+  mkdir -p "$(dirname "$target_path")"
+  cat >"$target_path" <<'EOF'
+# Meta MCP local config
+
+Do not invent values in these files:
+- `.claude/meta-mcp/mcp-env.local.json`
+- `.claude/meta-mcp/site-profiles.local.json`
+- `.claude/meta-mcp/BUSINESS_RULES.local.md`
+
+`mcp-env.local.json` is required for the Meta MCP server used by the Claude plugin.
+`OPENAI_API_KEY` is only needed for structured ad-copy generation.
+EOF
+}
+
+install_or_update_marketplace() {
+  local listed
+
+  listed="$(claude plugin marketplace list 2>/dev/null || true)"
+
+  if printf '%s' "$listed" | grep -q "meta-mcp-marketplace"; then
+    run_cmd claude plugin marketplace update meta-mcp-marketplace
+  else
+    run_cmd claude plugin marketplace add "$MARKETPLACE_SOURCE"
+  fi
+}
+
+install_or_update_plugin() {
+  if run_cmd claude plugin install "$PLUGIN_ID" --scope "$PLUGIN_SCOPE"; then
+    return
+  fi
+
+  run_cmd claude plugin update meta-mcp --scope "$PLUGIN_SCOPE"
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --project)
+      PROJECT_DIR="$2"
+      shift 2
+      ;;
+    --scope)
+      PLUGIN_SCOPE="$2"
+      shift 2
+      ;;
+    --meta-token)
+      META_ACCESS_TOKEN="$2"
+      shift 2
+      ;;
+    --openai-key)
+      OPENAI_API_KEY_VALUE="$2"
+      shift 2
+      ;;
+    --site-profiles-file)
+      SITE_PROFILES_FILE="$2"
+      shift 2
+      ;;
+    --business-rules-file)
+      BUSINESS_RULES_FILE="$2"
+      shift 2
+      ;;
+    --force)
+      FORCE=1
+      shift
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "Unknown argument: $1"
+      ;;
+  esac
+done
+
+need_cmd claude
+need_cmd curl
+need_cmd node
+
+PROJECT_DIR="$(cd "$PROJECT_DIR" && pwd)"
+[[ -d "$PROJECT_DIR" ]] || die "Project directory does not exist: $PROJECT_DIR"
+
+if [[ -n "$SITE_PROFILES_FILE" ]]; then
+  SITE_PROFILES_FILE="$(cd "$(dirname "$SITE_PROFILES_FILE")" && pwd)/$(basename "$SITE_PROFILES_FILE")"
+  [[ -f "$SITE_PROFILES_FILE" ]] || die "Missing site profiles file: $SITE_PROFILES_FILE"
+fi
+
+if [[ -n "$BUSINESS_RULES_FILE" ]]; then
+  BUSINESS_RULES_FILE="$(cd "$(dirname "$BUSINESS_RULES_FILE")" && pwd)/$(basename "$BUSINESS_RULES_FILE")"
+  [[ -f "$BUSINESS_RULES_FILE" ]] || die "Missing business rules file: $BUSINESS_RULES_FILE"
+fi
+
+if [[ "$PLUGIN_SCOPE" != "user" && "$PLUGIN_SCOPE" != "project" && "$PLUGIN_SCOPE" != "local" ]]; then
+  die "Unsupported scope: $PLUGIN_SCOPE"
+fi
+
+TEMP_DIR=""
+cleanup() {
+  if [[ -n "$TEMP_DIR" && -d "$TEMP_DIR" ]]; then
+    rm -rf "$TEMP_DIR"
+  fi
+}
+trap cleanup EXIT
+
+if [[ "$DRY_RUN" -ne 1 ]]; then
+  TEMP_DIR="$(mktemp -d)"
+  download_or_copy "plugins/meta-mcp/mcp-env.example.json" "${TEMP_DIR}/mcp-env.example.json"
+  download_or_copy "plugins/meta-mcp/site-profiles.example.json" "${TEMP_DIR}/site-profiles.example.json"
+  download_or_copy "plugins/meta-mcp/BUSINESS_RULES.example.md" "${TEMP_DIR}/BUSINESS_RULES.example.md"
+fi
+
+log "Installing/updating Claude marketplace"
+install_or_update_marketplace
+
+log "Installing/updating plugin ${PLUGIN_ID}"
+install_or_update_plugin
+
+log "Bootstrapping project files in ${PROJECT_DIR}"
+
+META_ROOT="${PROJECT_DIR}/.claude/meta-mcp"
+ENV_PATH="${META_ROOT}/mcp-env.local.json"
+SITE_PROFILES_PATH="${META_ROOT}/site-profiles.local.json"
+BUSINESS_RULES_PATH="${META_ROOT}/BUSINESS_RULES.local.md"
+README_PATH="${META_ROOT}/README.md"
+GITIGNORE_PATH="${PROJECT_DIR}/.claude/.gitignore"
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  printf '[dry-run] mkdir -p %s\n' "$META_ROOT"
+else
+  mkdir -p "$META_ROOT"
+fi
+write_env_file "$ENV_PATH"
+
+if [[ -n "$SITE_PROFILES_FILE" ]]; then
+  copy_if_needed "$SITE_PROFILES_FILE" "$SITE_PROFILES_PATH"
+else
+  copy_if_needed "${TEMP_DIR}/site-profiles.example.json" "$SITE_PROFILES_PATH"
+fi
+
+if [[ -n "$BUSINESS_RULES_FILE" ]]; then
+  copy_if_needed "$BUSINESS_RULES_FILE" "$BUSINESS_RULES_PATH"
+else
+  copy_if_needed "${TEMP_DIR}/BUSINESS_RULES.example.md" "$BUSINESS_RULES_PATH"
+fi
+
+write_project_readme "$README_PATH"
+ensure_gitignore_entries "$GITIGNORE_PATH"
+
+log ""
+log "Setup complete."
+log "Project: ${PROJECT_DIR}"
+log "Plugin scope: ${PLUGIN_SCOPE}"
+log "Next files to review:"
+log "- ${ENV_PATH}"
+log "- ${SITE_PROFILES_PATH}"
+log "- ${BUSINESS_RULES_PATH}"
+log ""
+log "Then restart Claude Code Desktop if it was already open."
