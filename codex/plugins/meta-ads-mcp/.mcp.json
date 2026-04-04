@@ -4,7 +4,8 @@
       "command": "node",
       "args": [
         "./scripts/launch-meta-server.js"
-      ]
+      ],
+      "cwd": "."
     }
   }
 }
