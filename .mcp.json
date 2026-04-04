@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "meta": {
+    "meta-ads-mcp": {
       "command": "node",
       "args": ["./build/index.js"],
       "cwd": "."

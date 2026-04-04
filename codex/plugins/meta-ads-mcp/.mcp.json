@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "meta": {
+    "meta-ads-mcp": {
       "command": "node",
       "args": [
         "./scripts/launch-meta-server.js"

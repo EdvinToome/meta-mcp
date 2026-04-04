@@ -5,7 +5,7 @@ description: Guided end-to-end Meta Ads publish flow for this repo's Meta MCP se
 
 # Meta Ads Builder
 
-Use this skill to turn a selected image into a published or paused Meta ad using this repo's local `meta` MCP server.
+Use this skill to turn a selected image into a published or paused Meta ad using this repo's local `meta-ads-mcp` MCP server.
 
 Read before acting:
 - `~/.meta-mcp/site-profiles.local.json` if it exists

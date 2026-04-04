@@ -55,7 +55,7 @@ Restart your MCP client, then call the `health_check` tool from the client.
 
 ## Agent Bundle
 
-This repo now ships as a Meta Ads agent bundle around the local `meta` MCP server.
+This repo now ships as a Meta Ads agent bundle around the local `meta-ads-mcp` MCP server.
 
 Bundled skills:
 - `meta-ads-builder`
@@ -136,7 +136,7 @@ That installer:
 - copies `codex/plugins/meta-ads-mcp` into `~/.codex/plugins/meta-ads-mcp`
 - writes `~/.agents/plugins/marketplace.json`
 - keeps the local runtime config under `~/.meta-mcp`
-- stages the local Meta runtime into the plugin bundle and launches the `meta` MCP server from there
+- stages the local Meta runtime into the plugin bundle and launches the `meta-ads-mcp` MCP server from there
 
 ## Codex + Meta Skills
 
@@ -364,7 +364,7 @@ If you've cloned the repository locally:
 #### Codex Local Configuration:
 
 Codex discovers this plugin through `~/.agents/plugins/marketplace.json`.
-The installed bundle at `~/.codex/plugins/meta-ads-mcp` includes the `.mcp.json` that launches the `meta` MCP server, so you do not add a server block to `~/.codex/config.toml`.
+The installed bundle at `~/.codex/plugins/meta-ads-mcp` includes the `.mcp.json` that launches the `meta-ads-mcp` MCP server, so you do not add a server block to `~/.codex/config.toml`.
 
 If you are setting up the repo for local development, use `npm run setup:codex-plugin` to create missing `~/.meta-mcp/*` files and install the skills.
 
