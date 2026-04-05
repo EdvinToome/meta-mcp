@@ -1,9 +1,0 @@
-{
-  "name": "meta-mcp",
-  "version": "1.7.2",
-  "description": "Meta Ads MCP workflows for Claude Code with builder, consultant, morning review, and copy commands.",
-  "author": {
-    "name": "Edvin Toome",
-    "url": "https://github.com/EdvinToome"
-  }
-}

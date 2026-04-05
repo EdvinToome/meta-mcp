@@ -10,7 +10,7 @@ usage() {
   cat <<'EOF'
 Usage: install-codex-plugin.sh [options]
 
-Installs the Meta Ads Codex plugin bundle and bootstraps missing local Meta config.
+Installs the Meta Marketing Codex plugin bundle and bootstraps missing local Meta config.
 
 Options:
   -h, --help       Show this help
@@ -46,7 +46,7 @@ need_cmd git
 need_cmd node
 need_cmd npm
 
-temp_dir="$(mktemp -d 2>/dev/null || mktemp -d -t meta-mcp)"
+temp_dir="$(mktemp -d 2>/dev/null || mktemp -d -t meta-marketing-plugin)"
 cleanup() {
   rm -rf "$temp_dir"
 }

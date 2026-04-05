@@ -37,7 +37,7 @@ export class AuthManager {
     return {
       Authorization: `Bearer ${this.getAccessToken()}`,
       "Content-Type": "application/json",
-      "User-Agent": "meta-ads-mcp/1.0.0",
+      "User-Agent": "meta-marketing-plugin/1.0.0",
     };
   }
 

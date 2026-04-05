@@ -11,16 +11,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
 
-const pluginName = "meta-ads-mcp";
+const pluginName = "meta-marketing-plugin";
 const marketplaceName = "edvin-plugins";
-const pluginSource = path.join(repoRoot, "codex", "plugins", pluginName);
 const pluginTarget = path.join(os.homedir(), ".codex", "plugins", pluginName);
-const marketplacePath = path.join(
-  os.homedir(),
-  ".agents",
-  "plugins",
-  "marketplace.json"
-);
 const pluginCacheRoot = path.join(
   os.homedir(),
   ".codex",
@@ -30,32 +23,29 @@ const pluginCacheRoot = path.join(
   pluginName
 );
 const pluginCachePath = path.join(pluginCacheRoot, "local");
-const metaConfigRoot = path.join(os.homedir(), ".meta-mcp");
+const marketplacePath = path.join(
+  os.homedir(),
+  ".agents",
+  "plugins",
+  "marketplace.json"
+);
+const metaConfigRoot = path.join(os.homedir(), ".meta-marketing-plugin");
 const metaEnvPath = path.join(metaConfigRoot, "meta.env");
+const codexAgentsRoot = path.join(os.homedir(), ".codex", "agents");
+const codexAdCopyAgentPath = path.join(codexAgentsRoot, "ad-copy-writer.toml");
+
+const templatesDir = path.join(repoRoot, "templates");
+const agentDir = path.join(repoRoot, "agent");
+const hostsCodexDir = path.join(repoRoot, "hosts", "codex");
 
 function ensureDirectory(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
-}
-
-function getPrompt(rl, query) {
-  return new Promise((resolve) => rl.question(query, resolve));
-}
-
-function canOpenTty() {
-  try {
-    const fd = fs.openSync("/dev/tty", "r");
-    fs.closeSync(fd);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 function removePath(targetPath) {
   if (!fs.existsSync(targetPath)) {
     return;
   }
-
   const stat = fs.lstatSync(targetPath);
   if (stat.isSymbolicLink() || stat.isFile()) {
     fs.unlinkSync(targetPath);
@@ -68,10 +58,14 @@ function replaceDirectory(source, target) {
   if (!fs.existsSync(source)) {
     throw new Error(`Missing source directory: ${source}`);
   }
-
   removePath(target);
   ensureDirectory(path.dirname(target));
   fs.cpSync(source, target, { recursive: true });
+}
+
+function copyFile(source, target) {
+  ensureDirectory(path.dirname(target));
+  fs.copyFileSync(source, target);
 }
 
 function writeJson(targetPath, value) {
@@ -81,20 +75,33 @@ function writeJson(targetPath, value) {
 
 function createFileIfMissing(targetPath, content) {
   ensureDirectory(path.dirname(targetPath));
-  if (!fs.existsSync(targetPath)) {
-    fs.writeFileSync(targetPath, content);
-    return true;
+  if (fs.existsSync(targetPath)) {
+    return false;
   }
-  return false;
+  fs.writeFileSync(targetPath, content);
+  return true;
+}
+
+function canOpenTty() {
+  try {
+    const fd = fs.openSync("/dev/tty", "r");
+    fs.closeSync(fd);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getPrompt(rl, query) {
+  return new Promise((resolve) => rl.question(query, resolve));
 }
 
 function readEnvValue(source, key) {
   const prefix = `${key}=`;
   for (const line of source.split("\n")) {
-    if (!line.startsWith(prefix)) {
-      continue;
+    if (line.startsWith(prefix)) {
+      return line.slice(prefix.length).trim().replace(/^"|"$/g, "");
     }
-    return line.slice(prefix.length).trim().replace(/^"|"$/g, "");
   }
   return "";
 }
@@ -103,13 +110,10 @@ function loadMarketplace() {
   if (!fs.existsSync(marketplacePath)) {
     return {
       name: marketplaceName,
-      interface: {
-        displayName: "Edvin Plugins",
-      },
+      interface: { displayName: "Edvin Plugins" },
       plugins: [],
     };
   }
-
   return JSON.parse(fs.readFileSync(marketplacePath, "utf8"));
 }
 
@@ -124,7 +128,7 @@ function writeMarketplace() {
     name: pluginName,
     source: {
       source: "local",
-      path: "./.codex/plugins/meta-ads-mcp",
+      path: `./.codex/plugins/${pluginName}`,
     },
     policy: {
       installation: "AVAILABLE",
@@ -152,38 +156,60 @@ function ensureMetaConfig() {
   const existingMetaEnv = fs.existsSync(metaEnvPath)
     ? fs.readFileSync(metaEnvPath, "utf8")
     : "";
+
   const siteProfilesCreated = createFileIfMissing(
     path.join(metaConfigRoot, "site-profiles.local.json"),
-    fs.readFileSync(path.join(pluginSource, "site-profiles.example.json"), "utf8")
+    fs.readFileSync(path.join(templatesDir, "site-profiles.example.json"), "utf8")
   );
 
-  const businessRulesCreated = createFileIfMissing(
-    path.join(metaConfigRoot, "BUSINESS_RULES.local.md"),
-    fs.readFileSync(path.join(pluginSource, "BUSINESS_RULES.example.md"), "utf8")
+  const brandDnaCreated = createFileIfMissing(
+    path.join(metaConfigRoot, "brand_dna.yaml"),
+    fs.readFileSync(path.join(templatesDir, "brand_dna.example.yaml"), "utf8")
   );
 
   createFileIfMissing(
     path.join(metaConfigRoot, "README.md"),
     [
-      "# Meta MCP Local Config",
+      "# Meta Marketing Plugin Local Config",
       "",
-      "This directory stores the local Meta Ads configuration used by Codex.",
+      "This directory stores local Meta configuration for Codex and Claude.",
       "",
       "Files:",
       "- `site-profiles.local.json`",
-      "- `BUSINESS_RULES.local.md`",
+      "- `brand_dna.yaml`",
+      "- `meta.env`",
       "",
-      "The plugin bundle lives in `~/.codex/plugins/meta-ads-mcp`.",
-      "The global Meta access token is installed by the Meta MCP installer and is not stored here.",
+      "Do not commit these files to source control.",
       "",
     ].join("\n")
   );
 
-  return {
-    existingMetaEnv,
-    siteProfilesCreated,
-    businessRulesCreated,
-  };
+  return { existingMetaEnv, siteProfilesCreated, brandDnaCreated };
+}
+
+function writeCodexAdCopySubagent() {
+  ensureDirectory(codexAgentsRoot);
+  const content = [
+    'name = "ad_copy_writer"',
+    'description = "Subagent for Meta ad copy payload generation from brand DNA and target URL."',
+    'model = "gpt-5.4-mini"',
+    'model_reasoning_effort = "medium"',
+    'developer_instructions = """',
+    "Read ~/.meta-marketing-plugin/brand_dna.yaml before writing copy.",
+    "Inspect the provided target_url and extract only verified page facts.",
+    "Use the installed ad-creative skill for copy drafting patterns.",
+    "Return builder-ready structured output with copy_context and copy_variants.",
+    "copy_variants must include parents, teachers, and general; each must include headline and primary_text.",
+    "Do not invent claims. If a fact cannot be verified on the page, exclude it.",
+    '"""',
+    "",
+    "[[skills.config]]",
+    'path = "/Users/edvintoome/.agents/skills/ad-creative/SKILL.md"',
+    "enabled = true",
+    "",
+  ].join("\n");
+
+  fs.writeFileSync(codexAdCopyAgentPath, content);
 }
 
 function runtimePackageJson() {
@@ -208,15 +234,10 @@ function ensureRepoBuild() {
     return;
   }
 
-  const installResult = spawnSync(
-    "npm",
-    ["ci", "--no-audit", "--no-fund"],
-    {
-      cwd: repoRoot,
-      stdio: "inherit",
-    }
-  );
-
+  const installResult = spawnSync("npm", ["ci", "--no-audit", "--no-fund"], {
+    cwd: repoRoot,
+    stdio: "inherit",
+  });
   if (installResult.error) {
     throw new Error("Missing npm. Install Node.js with npm and try again.");
   }
@@ -228,7 +249,6 @@ function ensureRepoBuild() {
     cwd: repoRoot,
     stdio: "inherit",
   });
-
   if (buildResult.error) {
     throw new Error("Missing npm. Install Node.js with npm and try again.");
   }
@@ -247,12 +267,8 @@ function installRuntimeDependencies() {
   const result = spawnSync(
     "npm",
     ["install", "--omit=dev", "--no-audit", "--no-fund"],
-    {
-      cwd: pluginTarget,
-      stdio: "inherit",
-    }
+    { cwd: pluginTarget, stdio: "inherit" }
   );
-
   if (result.error) {
     throw new Error("Missing npm. Install Node.js with npm and try again.");
   }
@@ -261,9 +277,50 @@ function installRuntimeDependencies() {
   }
 }
 
+function stagePluginBundle() {
+  removePath(pluginTarget);
+  ensureDirectory(pluginTarget);
+
+  replaceDirectory(path.join(agentDir, "skills"), path.join(pluginTarget, "skills"));
+  replaceDirectory(path.join(agentDir, "commands"), path.join(pluginTarget, "commands"));
+
+  copyFile(
+    path.join(templatesDir, "SITE_PROFILES.md"),
+    path.join(pluginTarget, "SITE_PROFILES.md")
+  );
+  copyFile(
+    path.join(templatesDir, "site-profiles.example.json"),
+    path.join(pluginTarget, "site-profiles.example.json")
+  );
+  copyFile(
+    path.join(templatesDir, "brand_dna.example.yaml"),
+    path.join(pluginTarget, "brand_dna.example.yaml")
+  );
+
+  copyFile(path.join(hostsCodexDir, "mcp.json"), path.join(pluginTarget, ".mcp.json"));
+  copyFile(
+    path.join(hostsCodexDir, "plugin.json"),
+    path.join(pluginTarget, ".codex-plugin", "plugin.json")
+  );
+  copyFile(
+    path.join(hostsCodexDir, "launch-meta-server.js"),
+    path.join(pluginTarget, "scripts", "launch-meta-server.js")
+  );
+
+  fs.writeFileSync(
+    path.join(pluginTarget, "README.md"),
+    [
+      "# Meta Marketing Plugin (Codex)",
+      "",
+      "Generated from canonical sources in this repository.",
+      "Do not edit the installed bundle directly.",
+      "",
+    ].join("\n")
+  );
+}
+
 function writeMetaEnv(envValues) {
   const lines = [`META_ACCESS_TOKEN=${JSON.stringify(envValues.META_ACCESS_TOKEN)}`];
-
   if (envValues.META_APP_ID) {
     lines.push(`META_APP_ID=${JSON.stringify(envValues.META_APP_ID)}`);
   }
@@ -274,18 +331,20 @@ function writeMetaEnv(envValues) {
   if (envValues.META_BUSINESS_ID) {
     lines.push(`META_BUSINESS_ID=${JSON.stringify(envValues.META_BUSINESS_ID)}`);
   }
-
   fs.writeFileSync(metaEnvPath, `${lines.join("\n")}\n`);
 }
 
 async function main() {
   removePath(pluginCacheRoot);
   ensureRepoBuild();
-  replaceDirectory(pluginSource, pluginTarget);
+  stagePluginBundle();
   replaceDirectory(path.join(repoRoot, "build"), path.join(pluginTarget, "build"));
   writeJson(path.join(pluginTarget, "package.json"), runtimePackageJson());
   writeMarketplace();
+  writeCodexAdCopySubagent();
+
   const created = ensureMetaConfig();
+  const ttyAvailable = canOpenTty();
 
   const existingToken =
     process.env.META_ACCESS_TOKEN ||
@@ -298,7 +357,6 @@ async function main() {
   const existingBusinessId =
     process.env.META_BUSINESS_ID ||
     readEnvValue(created.existingMetaEnv, "META_BUSINESS_ID");
-  const ttyAvailable = canOpenTty();
 
   if (!fs.existsSync(metaEnvPath) && !existingToken && !ttyAvailable) {
     throw new Error(
@@ -321,18 +379,13 @@ async function main() {
     if (ttyAvailable) {
       const ttyInput = fs.createReadStream("/dev/tty");
       const ttyOutput = fs.createWriteStream("/dev/tty");
-      const rl = readline.createInterface({
-        input: ttyInput,
-        output: ttyOutput,
-      });
+      const rl = readline.createInterface({ input: ttyInput, output: ttyOutput });
 
       if (!accessToken) {
-        accessToken = "";
         while (!accessToken) {
           accessToken = (await getPrompt(rl, "Meta Access Token: ")).trim();
         }
       }
-
       if (!appId) {
         appId = (await getPrompt(rl, "Meta App ID (optional): ")).trim();
       }
@@ -348,6 +401,12 @@ async function main() {
       ttyOutput.close();
     }
 
+    if (!accessToken) {
+      throw new Error(
+        "META_ACCESS_TOKEN is required. Set it in the environment or run interactively."
+      );
+    }
+
     writeMetaEnv({
       META_ACCESS_TOKEN: accessToken,
       META_APP_ID: appId,
@@ -355,43 +414,33 @@ async function main() {
       META_BUSINESS_ID: businessId,
     });
     wroteMetaEnv = true;
-  } else {
+  } else if (created.existingMetaEnv.trim().length === 0) {
     skippedMetaEnv = true;
   }
 
-  if (
-    skippedMetaEnv &&
-    !existingToken &&
-    !process.env.META_ACCESS_TOKEN
-  ) {
-    console.log(`⚠️  ${metaEnvPath} exists but META_ACCESS_TOKEN is missing.`);
+  console.log("Installed Meta Marketing Plugin for Codex");
+  console.log(`Bundle: ${pluginTarget}`);
+  console.log(`Cache: ${pluginCachePath}`);
+  console.log(`Marketplace: ${marketplacePath}`);
+  console.log(`Local config: ${metaConfigRoot}`);
+  console.log(`Subagent: ${codexAdCopyAgentPath}`);
+
+  if (created.siteProfilesCreated) {
+    console.log("Created site-profiles.local.json from template");
+  }
+  if (created.brandDnaCreated) {
+    console.log("Created brand_dna.yaml from template");
+  }
+  if (wroteMetaEnv) {
+    console.log("Created meta.env with provided credentials");
+  } else if (skippedMetaEnv) {
+    console.log("meta.env exists but is empty; update it before using live Meta tools");
   }
 
-  console.log("✅ Installed Meta Ads MCP Codex plugin");
-  console.log(`Plugin source: ${pluginSource}`);
-  console.log(`Plugin target: ${pluginTarget}`);
-  console.log(`Plugin cache: ${pluginCachePath}`);
-  console.log(`Marketplace: ${marketplacePath}`);
-  console.log(`Meta config: ${metaConfigRoot}`);
-  if (wroteMetaEnv) {
-    console.log(`✅ Created ${metaEnvPath}`);
-  } else if (skippedMetaEnv) {
-    console.log(`ℹ️  Kept existing ${metaEnvPath}`);
-  }
-  if (created.siteProfilesCreated) {
-    console.log(
-      `✅ Created ${path.join(metaConfigRoot, "site-profiles.local.json")}`
-    );
-  }
-  if (created.businessRulesCreated) {
-    console.log(
-      `✅ Created ${path.join(metaConfigRoot, "BUSINESS_RULES.local.md")}`
-    );
-  }
-  console.log("Restart Codex to pick up the plugin entry.");
+  console.log("Restart Codex and install/enable `meta-marketing-plugin` if needed.");
 }
 
 main().catch((error) => {
-  console.error(`❌ ${error.message}`);
+  console.error(`Failed to set up Codex plugin: ${error.message}`);
   process.exit(1);
 });

@@ -12,14 +12,15 @@ Do not commit business-specific operating data into tracked files.
 
 If present, read these local override files before acting on brand-specific work:
 - `site-profiles.local.json`
-- `BUSINESS_RULES.local.md`
 - `AGENTS.local.md`
+- `.claude/meta-marketing-plugin/site-profiles.local.json`
+- `~/.meta-marketing-plugin/site-profiles.local.json`
+- `~/.meta-marketing-plugin/brand_dna.yaml`
 
 If the local override files do not exist, use these tracked templates as references only:
-- `site-profiles.example.json`
-- `BUSINESS_RULES.example.md`
-- `SITE_PROFILES.md`
-- `AD_COPY_GUIDE.md`
+- `templates/site-profiles.example.json`
+- `templates/brand_dna.example.yaml`
+- `templates/SITE_PROFILES.md`
 
 ## Publishing Rules
 
@@ -32,5 +33,6 @@ If the local override files do not exist, use these tracked templates as referen
 
 - Prefer the local `meta` MCP server for Meta API operations.
 - Resolve site profiles from the local override file first.
+- Use `~/.meta-marketing-plugin/brand_dna.yaml` as the single source for business context.
 - Treat example files as schema and setup references, not as live runtime state.
 - If the user asks to add or update a real profile, write it to the local override file, not the tracked example.

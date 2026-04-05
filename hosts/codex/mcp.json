@@ -2,7 +2,9 @@
   "mcpServers": {
     "meta-marketing-plugin": {
       "command": "node",
-      "args": ["./build/index.js"],
+      "args": [
+        "./scripts/launch-meta-server.js"
+      ],
       "cwd": "."
     }
   }

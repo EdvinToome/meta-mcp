@@ -48,7 +48,7 @@ export class MetaApiClient {
       typeof options.debug === "boolean"
         ? options.debug
         : process.env.META_MCP_DEBUG === "1" ||
-          (process.env.DEBUG?.includes("meta-mcp") ?? false);
+          (process.env.DEBUG?.includes("meta-marketing-plugin") ?? false);
   }
 
   get authManager(): AuthManager {

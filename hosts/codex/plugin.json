@@ -17,8 +17,8 @@
     "instagram-ads",
     "codex-plugin"
   ],
-  "skills": "./agent/skills/",
-  "mcpServers": "./hosts/codex/mcp.json",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Meta Marketing Plugin",
     "shortDescription": "Publish, review, and diagnose Meta ads with saved site profiles.",

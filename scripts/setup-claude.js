@@ -14,6 +14,10 @@ const repoRoot = path.resolve(__dirname, "..");
 const args = process.argv.slice(2);
 const force = args.includes("--force");
 
+const templatesDir = path.join(repoRoot, "templates");
+const skillsDir = path.join(repoRoot, "agent", "skills");
+const commandsSourceDir = path.join(repoRoot, "agent", "commands");
+
 function readArg(name) {
   const index = args.indexOf(name);
   return index === -1 ? "" : args[index + 1] || "";
@@ -50,12 +54,18 @@ function getClaudeConfigPath() {
 }
 
 const projectRoot = path.resolve(readArg("--project") || process.cwd());
-const claudeMetaRoot = path.join(projectRoot, ".claude", "meta-mcp");
+const claudeMetaRoot = path.join(projectRoot, ".claude", "meta-marketing-plugin");
 const commandsRoot = path.join(projectRoot, ".claude", "commands");
+const agentsRoot = path.join(projectRoot, ".claude", "agents");
 const claudePath = path.join(projectRoot, "CLAUDE.md");
 const claudeConfigPath = getClaudeConfigPath();
+const globalMetaRoot = path.join(os.homedir(), ".meta-marketing-plugin");
+const globalBrandDnaPath = path.join(globalMetaRoot, "brand_dna.yaml");
 
 function removePath(targetPath) {
+  if (!fs.existsSync(targetPath)) {
+    return;
+  }
   const stat = fs.lstatSync(targetPath);
   if (stat.isSymbolicLink() || stat.isFile()) {
     fs.unlinkSync(targetPath);
@@ -88,40 +98,21 @@ function ensureLink(source, target) {
   fs.symlinkSync(source, target, type);
 }
 
-function writeFile(targetPath, content) {
-  if (fs.existsSync(targetPath) && !force) {
-    throw new Error(`${targetPath} already exists. Re-run with --force to replace it.`);
-  }
-  ensureDirectory(path.dirname(targetPath));
-  fs.writeFileSync(targetPath, content);
-}
+function upsertManagedBlock(filePath, blockStart, blockEnd, lines) {
+  const block = [blockStart, ...lines, blockEnd, ""].join("\n");
 
-function writeManagedClaudeFile() {
-  const start = "<!-- meta-mcp:start -->";
-  const end = "<!-- meta-mcp:end -->";
-  const block = [
-    start,
-    "When you use Meta Ads workflows in this project, read `.claude/meta-mcp/README.md` first.",
-    "Available slash commands:",
-    "- `/meta-ads-builder`",
-    "- `/meta-ads-consultant`",
-    "- `/meta-ads-morning-review`",
-    "- `/meta-ad-copy`",
-    end,
-    "",
-  ].join("\n");
-
-  if (!fs.existsSync(claudePath)) {
-    writeFile(claudePath, `# Claude Code\n\n${block}`);
+  if (!fs.existsSync(filePath)) {
+    ensureDirectory(path.dirname(filePath));
+    fs.writeFileSync(filePath, `# Claude Code\n\n${block}`);
     return;
   }
 
-  const source = fs.readFileSync(claudePath, "utf8");
-  const pattern = new RegExp(`${start}[\\s\\S]*?${end}\\n?`, "m");
+  const source = fs.readFileSync(filePath, "utf8");
+  const pattern = new RegExp(`${blockStart}[\\s\\S]*?${blockEnd}\\n?`, "m");
   const output = pattern.test(source)
     ? source.replace(pattern, block)
     : `${source.trimEnd()}\n\n${block}`;
-  fs.writeFileSync(claudePath, output);
+  fs.writeFileSync(filePath, output);
 }
 
 function writeGlobalClaudeConfig(metaAccessToken) {
@@ -145,41 +136,28 @@ function writeGlobalClaudeConfig(metaAccessToken) {
   fs.writeFileSync(claudeConfigPath, `${JSON.stringify(payload, null, 2)}\n`);
 }
 
-function writeClaudeReadme() {
+function writeProjectReadme() {
   const readmePath = path.join(claudeMetaRoot, "README.md");
-  const content = `# Meta MCP for Claude Code
+  const content = `# Meta Marketing Plugin (Claude)
 
 This project uses the globally configured \`meta\` MCP server.
 
-Before acting on Meta Ads work, read:
-- \`.claude/meta-mcp/site-profiles.local.json\`
-- \`.claude/meta-mcp/BUSINESS_RULES.local.md\`
-- \`.claude/meta-mcp/site-profiles.example.json\`
-- \`.claude/meta-mcp/SITE_PROFILES.md\`
-- \`.claude/meta-mcp/BUSINESS_RULES.example.md\`
-- \`.claude/meta-mcp/AD_COPY_GUIDE.md\`
-- \`.claude/meta-mcp/MCP_USAGE.md\`
-- \`.claude/meta-mcp/skills/meta-ads-builder/SKILL.md\`
-- \`.claude/meta-mcp/skills/meta-ads-consultant/SKILL.md\`
-- \`.claude/meta-mcp/skills/meta-ads-morning-review/SKILL.md\`
-- \`.claude/meta-mcp/skills/meta-ad-copy/SKILL.md\`
+Local files:
+- \`.claude/meta-marketing-plugin/site-profiles.local.json\`
+- \`~/.meta-marketing-plugin/brand_dna.yaml\`
 
-Core rules:
-- Use the global \`meta\` MCP server for Meta API actions.
-- Resolve site profiles before asking for raw Meta IDs.
-- Prepare ad copy in the agent layer before the structured build call.
-- Use browser tools before diagnosing landing-page or creative issues.
+Command surface:
+- \`/meta-ads-builder\`
+- \`/meta-ads-consultant\`
+- \`/meta-ads-morning-review\`
+- \`/ad-copy-writer\`
 `;
-
   fs.writeFileSync(readmePath, content);
 }
 
 function ensureGitignoreEntries() {
   const gitignorePath = path.join(projectRoot, ".claude", ".gitignore");
-  const entries = [
-    "meta-mcp/site-profiles.local.json",
-    "meta-mcp/BUSINESS_RULES.local.md",
-  ];
+  const entries = ["meta-marketing-plugin/site-profiles.local.json"];
 
   ensureDirectory(path.dirname(gitignorePath));
   if (!fs.existsSync(gitignorePath)) {
@@ -197,63 +175,81 @@ function ensureGitignoreEntries() {
   fs.writeFileSync(gitignorePath, next.replace(/^\n/, ""));
 }
 
-function writeCommand(name, skillPath, openingLines) {
-  const commandPath = path.join(commandsRoot, `${name}.md`);
-  const content = `${openingLines.join("\n")}\n\nUse the workflow in \`${skillPath}\`.\n`;
-  fs.writeFileSync(commandPath, content);
+function installSlashCommands() {
+  ensureDirectory(commandsRoot);
+  const allowed = new Set([
+    "meta-ads-builder.md",
+    "meta-ads-consultant.md",
+    "meta-ads-morning-review.md",
+    "ad-copy-writer.md",
+  ]);
+
+  for (const file of fs.readdirSync(commandsRoot)) {
+    if (file.endsWith(".md") && !allowed.has(file)) {
+      removePath(path.join(commandsRoot, file));
+    }
+  }
+
+  for (const file of allowed) {
+    fs.copyFileSync(
+      path.join(commandsSourceDir, file),
+      path.join(commandsRoot, file)
+    );
+  }
+}
+
+function ensureGlobalBrandDna() {
+  ensureDirectory(globalMetaRoot);
+  createLocalFileIfMissing(
+    path.join(templatesDir, "brand_dna.example.yaml"),
+    globalBrandDnaPath
+  );
+}
+
+function writeClaudeAdCopySubagent() {
+  ensureDirectory(agentsRoot);
+  const subagentPath = path.join(agentsRoot, "ad-copy-writer.md");
+  const content = `---
+name: ad-copy-writer
+description: Meta ad copy subagent that returns builder-ready structured payloads.
+model: sonnet
+tools: Read, Grep, Glob, Bash
+skills:
+  - /Users/edvintoome/.agents/skills/ad-creative/SKILL.md
+---
+
+Read \`~/.meta-marketing-plugin/brand_dna.yaml\` before writing copy.
+Inspect the provided \`target_url\` and use only facts verified on page.
+Use the configured \`ad-creative\` skill.
+Return builder-ready structured output:
+- \`copy_context\`
+- \`copy_variants\` with \`parents\`, \`teachers\`, \`general\`, each with \`headline\` and \`primary_text\`.
+Do not invent claims or product facts.
+`;
+  fs.writeFileSync(subagentPath, content);
 }
 
 function installClaudeBundle() {
   ensureDirectory(claudeMetaRoot);
-  ensureLink(path.join(repoRoot, "skills"), path.join(claudeMetaRoot, "skills"));
+  ensureLink(skillsDir, path.join(claudeMetaRoot, "skills"));
   ensureLink(
-    path.join(repoRoot, "site-profiles.example.json"),
+    path.join(templatesDir, "site-profiles.example.json"),
     path.join(claudeMetaRoot, "site-profiles.example.json")
   );
   ensureLink(
-    path.join(repoRoot, "SITE_PROFILES.md"),
+    path.join(templatesDir, "SITE_PROFILES.md"),
     path.join(claudeMetaRoot, "SITE_PROFILES.md")
   );
-  ensureLink(
-    path.join(repoRoot, "BUSINESS_RULES.example.md"),
-    path.join(claudeMetaRoot, "BUSINESS_RULES.example.md")
-  );
-  ensureLink(
-    path.join(repoRoot, "AD_COPY_GUIDE.md"),
-    path.join(claudeMetaRoot, "AD_COPY_GUIDE.md")
-  );
-  ensureLink(
-    path.join(repoRoot, "plugins", "meta-mcp", "MCP_USAGE.md"),
-    path.join(claudeMetaRoot, "MCP_USAGE.md")
-  );
+
   createLocalFileIfMissing(
-    path.join(repoRoot, "site-profiles.example.json"),
+    path.join(templatesDir, "site-profiles.example.json"),
     path.join(claudeMetaRoot, "site-profiles.local.json")
   );
-  createLocalFileIfMissing(
-    path.join(repoRoot, "BUSINESS_RULES.example.md"),
-    path.join(claudeMetaRoot, "BUSINESS_RULES.local.md")
-  );
-  writeClaudeReadme();
-  ensureDirectory(commandsRoot);
-  writeCommand("meta-ads-builder", ".claude/meta-mcp/skills/meta-ads-builder/SKILL.md", [
-    "Start by checking the global `meta` MCP server with `health_check` and `get_capabilities`.",
-    "Resolve the site profile from `.claude/meta-mcp/site-profiles.local.json` before using raw Meta IDs.",
-    "Prepare `copy_context` and `copy_variants` before the structured build call."
-  ]);
-  writeCommand("meta-ads-consultant", ".claude/meta-mcp/skills/meta-ads-consultant/SKILL.md", [
-    "Start with live campaign data from the global `meta` MCP server.",
-    "Separate confirmed Meta facts from your consultant inference.",
-    "Use browser tools before commenting on landing pages or creative."
-  ]);
-  writeCommand("meta-ads-morning-review", ".claude/meta-mcp/skills/meta-ads-morning-review/SKILL.md", [
-    "Start with yesterday's performance for the active site profiles.",
-    "Anchor conclusions in trailing 7-day context and return clear actions."
-  ]);
-  writeCommand("meta-ad-copy", ".claude/meta-mcp/skills/meta-ad-copy/SKILL.md", [
-    "Resolve the site profile before drafting copy.",
-    "Return explicit `copy_variants` when the publish flow needs structured build input."
-  ]);
+
+  ensureGlobalBrandDna();
+  writeClaudeAdCopySubagent();
+  writeProjectReadme();
+  installSlashCommands();
 }
 
 function getPrompt(rl, query) {
@@ -267,11 +263,9 @@ async function main() {
   });
 
   let metaAccessToken = process.env.META_ACCESS_TOKEN || readArg("--meta-token");
-
   if (!metaAccessToken) {
     metaAccessToken = (await getPrompt(rl, "Meta Access Token: ")).trim();
   }
-
   rl.close();
 
   if (!metaAccessToken) {
@@ -279,18 +273,32 @@ async function main() {
   }
 
   installClaudeBundle();
-  writeManagedClaudeFile();
+  upsertManagedBlock(
+    claudePath,
+    "<!-- meta-marketing-plugin:start -->",
+    "<!-- meta-marketing-plugin:end -->",
+    [
+      "When you use Meta Ads workflows in this project, read `.claude/meta-marketing-plugin/README.md` first.",
+      "Available slash commands:",
+      "- `/meta-ads-builder`",
+      "- `/meta-ads-consultant`",
+      "- `/meta-ads-morning-review`",
+      "- `/ad-copy-writer`",
+    ]
+  );
   writeGlobalClaudeConfig(metaAccessToken);
   ensureGitignoreEntries();
 
-  console.log("✅ Installed Meta MCP support for Claude Code");
+  console.log("Installed Meta Marketing Plugin support for Claude Code");
   console.log(`Project: ${projectRoot}`);
   console.log(`Claude bundle: ${claudeMetaRoot}`);
   console.log(`Commands: ${commandsRoot}`);
+  console.log(`Subagent: ${path.join(agentsRoot, "ad-copy-writer.md")}`);
+  console.log(`Global brand DNA: ${globalBrandDnaPath}`);
   console.log(`Claude MCP config: ${claudeConfigPath}`);
 }
 
 main().catch((error) => {
-  console.error(`❌ ${error.message}`);
+  console.error(`Failed to set up Claude integration: ${error.message}`);
   process.exit(1);
 });

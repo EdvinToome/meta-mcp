@@ -8,5 +8,7 @@ npm-debug.log
 .env*.local
 .kiro
 site-profiles.local.json
-BUSINESS_RULES.local.md
+brand_dna.yaml
 AGENTS.local.md
+.claude/meta-marketing-plugin/site-profiles.local.json
+dist
