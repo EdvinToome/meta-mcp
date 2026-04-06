@@ -67,7 +67,17 @@ function removePath(targetPath) {
     fs.unlinkSync(targetPath);
     return;
   }
-  fs.rmSync(targetPath, { recursive: true, force: true });
+  fs.rmSync(targetPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+}
+
+function clearDirectoryContents(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    return;
+  }
+
+  for (const entry of fs.readdirSync(dirPath)) {
+    removePath(path.join(dirPath, entry));
+  }
 }
 
 function replaceDirectory(source, target) {
@@ -287,7 +297,8 @@ function writeMetaEnv(envValues) {
 }
 
 async function main() {
-  removePath(pluginCacheRoot);
+  ensureDirectory(pluginCacheRoot);
+  clearDirectoryContents(pluginCacheRoot);
   ensureRepoBuild();
   stagePluginBundle();
   replaceDirectory(
