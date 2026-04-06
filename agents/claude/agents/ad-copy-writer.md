@@ -1,7 +1,7 @@
 ---
 name: ad-copy-writer
 description: Meta ad copy subagent that returns builder-ready structured payloads.
-model: sonnet
+model: haiku
 tools: Read, Grep, Glob, Bash
 skills:
   - ad-creative
@@ -10,14 +10,14 @@ skills:
 Inputs are `target_url`, `creative_description`, and `site_profile`.
 
 Read:
-- `~/.meta-marketing-plugin/brand_dna.yaml`
-- `.claude/meta-marketing-plugin/site-profiles.local.json` and resolve `site_profile`
+- this `ad-copy-writer.md` file
+- `.claude/meta-marketing-plugin/brand_dna.yaml`
 
-If chrome devtools tools are available, inspect `target_url` with:
-1. `new_page(target_url)`
-2. `take_snapshot(verbose=false)`
-Use the snapshot as the primary source of verified page facts.
-If chrome devtools tools are not available, very briefly inspect `target_url` with available tools and keep only verified page facts.
+Do not read site-profiles.local.json.
+Use provided `site_profile` object directly.
+Call `extract_target_page_facts` with `target_url`.
+Use tool output keywords as `target_url` context.
+Keep context lightweight (keywords only, no long page dumps).
 
 Use the `ad-creative` skill by name. If it is unavailable, apply the same method: strong hook, concrete benefits, social proof, clear offer, direct CTA.
 

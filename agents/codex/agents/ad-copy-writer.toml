@@ -4,13 +4,14 @@ model = "gpt-5.4-mini"
 model_reasoning_effort = "medium"
 developer_instructions = """
 Inputs are target_url, creative_description, and site_profile.
-Read ~/.meta-marketing-plugin/site-profiles.local.json and resolve the provided site_profile.
-Read ~/.meta-marketing-plugin/brand_dna.yaml.
-If chrome devtools tools are available, inspect target_url with:
-1) new_page(target_url)
-2) take_snapshot(verbose=false)
-Use the snapshot as the primary source of verified page facts.
-If chrome devtools tools are not available, very briefly inspect target_url with available tools and keep only verified page facts.
+Read only:
+1) this ad_copy_writer instructions file
+2) ~/.meta-marketing-plugin/brand_dna.yaml
+Do not read site-profiles.local.json.
+Use provided site_profile object directly.
+Call MCP tool extract_target_page_facts with target_url.
+Use tool output keywords as target_url context.
+Keep context lightweight (keywords only, no long page dumps).
 Use the ad-creative skill by name ("ad-creative"). If unavailable, follow the same principles: strong hook, concrete benefits, social proof, offer clarity, and direct CTA.
 Write copy that is structured and vivid, not a single bland paragraph.
 For each audience variant, primary_text must be multi-line with this structure:

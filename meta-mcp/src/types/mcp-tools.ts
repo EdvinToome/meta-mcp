@@ -1241,6 +1241,17 @@ export const UploadCreativeAssetSchema = z.object({
     .describe("Optional custom name for the uploaded image"),
 });
 
+export const ExtractTargetPageFactsSchema = z.object({
+  target_url: z.string().url().describe("Target URL to extract lightweight facts from"),
+  max_items: z
+    .number()
+    .min(1)
+    .max(50)
+    .optional()
+    .default(20)
+    .describe("Maximum number of extracted keyword lines to return"),
+});
+
 // Type exports for runtime use
 export type ListCampaignsParams = z.infer<typeof ListCampaignsSchema>;
 export type CreateCampaignParams = z.infer<typeof CreateCampaignSchema>;
@@ -1286,4 +1297,7 @@ export type CreativeValidationEnhancedParams = z.infer<
 export type UploadImageFromUrlParams = z.infer<typeof UploadImageFromUrlSchema>;
 export type UploadCreativeAssetParams = z.infer<
   typeof UploadCreativeAssetSchema
+>;
+export type ExtractTargetPageFactsParams = z.infer<
+  typeof ExtractTargetPageFactsSchema
 >;

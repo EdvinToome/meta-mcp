@@ -8,17 +8,15 @@ Primary entry command: `/meta-ads-builder`.
 
 Read:
 - `.claude/meta-marketing-plugin/site-profiles.local.json`
-- `.claude/meta-marketing-plugin/brand_dna.yaml` only when generating/reviewing copy claims or brand voice
 
 Workflow:
 1. Resolve `site_profile` from project profiles.
 2. Resolve image, `target_url`, budget, status, CTA.
-3. Load `brand_dna.yaml` only if copy generation or claim validation is needed.
-4. Delegate copy to subagent `ad-copy-writer` with, by default 3 variants, one for each audience:
+3. Delegate copy to subagent `ad-copy-writer` with, by default 3 variants, one for each audience:
    - `target_url`
    - `creative_description`
-   - `site_profile`
-5. Require:
+   - resolved `site_profile` object (not profile id)
+4. Require:
    - `copy_context`
    - `copy_variants` (`parents`, `teachers`, `general`)
    - quality gate before build:
@@ -27,8 +25,8 @@ Workflow:
      - includes an explicit CTA line
      - audience variants are materially different, not paraphrases
    - if the gate fails, request a rewrite from `ad-copy-writer` before proceeding
-6. Execute `mcp__meta_marketing_plugin__run_structured_ad_build`.
-7. Return IDs and next steps.
+5. Execute `mcp__meta_marketing_plugin__run_structured_ad_build`.
+6. Return IDs and next steps.
 
 Rules:
 - Use Meta MCP tools only.

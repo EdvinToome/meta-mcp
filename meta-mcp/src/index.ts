@@ -18,6 +18,7 @@ import { registerAnalyticsTools } from "./tools/analytics.js";
 import { registerAudienceTools } from "./tools/audiences.js";
 import { registerCreativeTools } from "./tools/creatives.js";
 import { registerOAuthTools } from "./tools/oauth.js";
+import { registerContentTools } from "./tools/content.js";
 import { registerCampaignResources } from "./resources/campaigns.js";
 import { registerInsightsResources } from "./resources/insights.js";
 import { registerAudienceResources } from "./resources/audiences.js";
@@ -99,6 +100,8 @@ async function main() {
     console.error("   ✅ Creative tools registered");
     registerOAuthTools(server, auth);
     console.error("   ✅ OAuth tools registered");
+    registerContentTools(server);
+    console.error("   ✅ Content tools registered");
 
     // Register all resources
     console.error("📚 Registering resources...");
@@ -266,6 +269,7 @@ async function main() {
           "get_quick_fixes",
           "verify_account_setup",
           // Utility tools
+          "extract_target_page_facts",
           "get_ad_accounts",
           "health_check",
           "get_capabilities",
@@ -461,7 +465,12 @@ async function main() {
           },
           tool_categories: {
             account_management: {
-              tools: ["get_ad_accounts", "health_check", "get_token_info"],
+              tools: [
+                "get_ad_accounts",
+                "health_check",
+                "get_token_info",
+                "extract_target_page_facts",
+              ],
               description: "Account access, authentication, and server status",
             },
             campaign_operations: {
