@@ -5,7 +5,7 @@ set -euo pipefail
 REPO_SLUG="${REPO_SLUG:-EdvinToome/meta-mcp}"
 REPO_REF="${REPO_REF:-main}"
 REPO_URL="https://github.com/${REPO_SLUG}.git"
-MARKETPLACE_SOURCE="${MARKETPLACE_SOURCE:-https://github.com/${REPO_SLUG}}"
+MARKETPLACE_SOURCE="${MARKETPLACE_SOURCE:-}"
 PLUGIN_ID="meta-marketing-plugin@meta-marketing-plugin-marketplace"
 
 PROJECT_DIR="$(pwd)"
@@ -63,7 +63,10 @@ install_or_update_marketplace() {
   local listed
   listed="$(claude plugin marketplace list 2>/dev/null || true)"
   if printf '%s' "$listed" | grep -q "meta-marketing-plugin-marketplace"; then
-    run_cmd claude plugin marketplace update meta-marketing-plugin-marketplace
+    if ! run_cmd claude plugin marketplace update meta-marketing-plugin-marketplace; then
+      run_cmd claude plugin marketplace remove meta-marketing-plugin-marketplace
+      run_cmd claude plugin marketplace add "$MARKETPLACE_SOURCE"
+    fi
   else
     run_cmd claude plugin marketplace add "$MARKETPLACE_SOURCE"
   fi
@@ -146,10 +149,16 @@ if [[ -n "${BASH_SOURCE[0]:-}" && -f "${BASH_SOURCE[0]}" ]]; then
   candidate_root="$(cd "${script_dir}/.." && pwd)"
   if [[ -f "${candidate_root}/meta-mcp/scripts/setup-claude.js" ]]; then
     repo_root="$candidate_root"
+    if [[ -z "$MARKETPLACE_SOURCE" ]]; then
+      MARKETPLACE_SOURCE="$repo_root"
+    fi
   fi
 fi
 
 if [[ -z "$repo_root" ]]; then
+  if [[ -z "$MARKETPLACE_SOURCE" ]]; then
+    MARKETPLACE_SOURCE="https://github.com/${REPO_SLUG}"
+  fi
   temp_dir="$(mktemp -d 2>/dev/null || mktemp -d -t meta-marketing-plugin)"
   if [[ "$DRY_RUN" -eq 1 ]]; then
     printf '[dry-run] git clone --depth 1 --branch %s %s %s\n' "$REPO_REF" "$REPO_URL" "$temp_dir"
