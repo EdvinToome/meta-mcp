@@ -10,8 +10,11 @@ usage() {
   cat <<'EOF'
 Usage: install-codex-plugin.sh [options]
 
-Installs or updates the Meta Marketing Codex plugin bundle and bootstraps missing local Meta config.
-Existing meta config files are preserved on update (meta.env, site-profiles.local.json, brand_dna.yaml).
+Installs or updates the Meta Marketing Codex plugin bundle and performs a full plugin refresh.
+During refresh, only these global config files are preserved:
+  - ~/.meta-marketing-plugin/meta.env
+  - ~/.meta-marketing-plugin/site-profiles.local.json
+  - ~/.meta-marketing-plugin/brand_dna.yaml
 
 Options:
   -h, --help       Show this help

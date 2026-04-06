@@ -82,6 +82,11 @@ const agentsRoot = path.join(claudeMetaRoot, "agents");
 const claudePath = path.join(projectRoot, "CLAUDE.md");
 const claudeConfigPath = getClaudeConfigPath();
 const projectMetaEnvPath = path.join(claudeMetaRoot, "meta.env");
+const PRESERVED_PROJECT_META_FILES = new Set([
+  "meta.env",
+  "site-profiles.local.json",
+  "brand_dna.yaml",
+]);
 
 function removePath(targetPath) {
   if (!fs.existsSync(targetPath)) {
@@ -93,6 +98,16 @@ function removePath(targetPath) {
     return;
   }
   fs.rmSync(targetPath, { recursive: true, force: true });
+}
+
+function clearDirectoryContentsPreservingFiles(dirPath, preservedFiles) {
+  ensureDirectory(dirPath);
+  for (const entry of fs.readdirSync(dirPath)) {
+    if (preservedFiles.has(entry)) {
+      continue;
+    }
+    removePath(path.join(dirPath, entry));
+  }
 }
 
 function copyFile(source, target, overwrite = true) {
@@ -235,6 +250,10 @@ function ensureGlobalBrandDna() {
 function installClaudeAssets() {
   ensureDirectory(claudeMetaRoot);
   ensureDirectory(claudeRoot);
+  clearDirectoryContentsPreservingFiles(
+    claudeMetaRoot,
+    PRESERVED_PROJECT_META_FILES
+  );
   copyDirectory(
     path.join(claudeSourcesDir, "skills"),
     skillsRoot,
@@ -274,12 +293,7 @@ function installClaudeAssets() {
   removePath(path.join(claudeMetaRoot, "skills"));
   removePath(path.join(claudeRoot, "agents"));
 
-  ensureDirectory(agentsRoot);
-  copyFile(
-    path.join(claudeSourcesDir, "agents", "ad-copy-writer.md"),
-    path.join(agentsRoot, "ad-copy-writer.md"),
-    true
-  );
+  copyDirectory(path.join(claudeSourcesDir, "agents"), agentsRoot, true);
 }
 
 function ensureRepoBuild() {

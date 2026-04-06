@@ -35,6 +35,11 @@ const metaRoot = path.join(os.homedir(), ".meta-marketing-plugin");
 const metaEnvPath = path.join(metaRoot, "meta.env");
 const siteProfilesPath = path.join(metaRoot, "site-profiles.local.json");
 const brandDnaPath = path.join(metaRoot, "brand_dna.yaml");
+const PRESERVED_GLOBAL_META_FILES = new Set([
+  "meta.env",
+  "site-profiles.local.json",
+  "brand_dna.yaml",
+]);
 
 const codexAgentsRoot = path.join(os.homedir(), ".codex", "agents");
 const codexAdCopyAgentPath = path.join(codexAgentsRoot, "ad-copy-writer.toml");
@@ -76,6 +81,16 @@ function clearDirectoryContents(dirPath) {
   }
 
   for (const entry of fs.readdirSync(dirPath)) {
+    removePath(path.join(dirPath, entry));
+  }
+}
+
+function clearDirectoryContentsPreservingFiles(dirPath, preservedFiles) {
+  ensureDirectory(dirPath);
+  for (const entry of fs.readdirSync(dirPath)) {
+    if (preservedFiles.has(entry)) {
+      continue;
+    }
     removePath(path.join(dirPath, entry));
   }
 }
@@ -177,6 +192,7 @@ function writeMarketplace() {
 
 function ensureMetaConfig() {
   ensureDirectory(metaRoot);
+  clearDirectoryContentsPreservingFiles(metaRoot, PRESERVED_GLOBAL_META_FILES);
 
   const existingMetaEnv = fs.existsSync(metaEnvPath)
     ? fs.readFileSync(metaEnvPath, "utf8")
