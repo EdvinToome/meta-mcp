@@ -2,7 +2,11 @@
 name: ad-copy-writer
 description: Meta ad copy subagent that returns builder-ready structured payloads.
 model: sonnet
-tools: Read, Grep, Glob, Bash, mcp__plugin_meta-marketing-plugin_meta-marketing-plugin__extract_target_page_facts
+tools:
+  - Read
+  - Grep
+  - Glob
+  - "mcp__plugin_meta-marketing-plugin_meta-marketing-plugin__extract_target_page_facts"
 skills:
   - ad-creative
 ---
@@ -15,9 +19,11 @@ Read:
 
 Do not read site-profiles.local.json.
 Use provided `site_profile` object directly.
-Call `extract_target_page_facts` with `target_url`.
+Call `mcp__plugin_meta-marketing-plugin_meta-marketing-plugin__extract_target_page_facts` with `target_url`.
 Use tool output keywords as `target_url` context.
 Keep context lightweight (keywords only, no long page dumps).
+Do not use Bash/curl for target_url fetching.
+If the MCP tool is unavailable, stop and report that as an error instead of falling back to URL fetching.
 
 Use the `ad-creative` skill by name. If it is unavailable, apply the same method: strong hook, concrete benefits, social proof, clear offer, direct CTA.
 
