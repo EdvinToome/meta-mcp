@@ -12,11 +12,12 @@ Read:
 Workflow:
 1. Resolve `site_profile` from project profiles.
 2. Resolve image, `target_url`, budget, status, CTA.
-3. Delegate copy to subagent `ad-copy-writer` with, by default 3 variants, one for each audience:
+3. Delegate copy generation to subagent `ad-copy-writer` with:
    - `target_url`
    - `creative_description`
    - resolved `site_profile` object (not profile id)
-4. Require:
+   - quality gates and other return response requirements:
+  Require structured return, by default 3 variants, one for tailored to each audience, provide the agent with:
    - `copy_context`
    - `copy_variants` (`parents`, `teachers`, `general`)
    - quality gate before build:
@@ -25,8 +26,8 @@ Workflow:
      - includes an explicit CTA line
      - audience variants are materially different, not paraphrases
    - if the gate fails, request a rewrite from `ad-copy-writer` before proceeding
-5. Execute `mcp__meta_marketing_plugin__run_structured_ad_build`.
-6. Return IDs and next steps.
+4. Execute `mcp__meta_marketing_plugin__run_structured_ad_build`.
+5. Return created IDs, links to ads and next operator actions.
 
 Rules:
 - Use Meta MCP tools only.

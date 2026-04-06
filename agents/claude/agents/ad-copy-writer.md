@@ -36,7 +36,7 @@ Return JSON-only, builder-ready structured output:
 
 Quality rules:
 - Headline should be specific and punchy (roughly 30-60 chars)
-- Use line breaks and optional light emoji markers where natural
+- Use line breaks and emoji markers where natural
 - Keep audience angles meaningfully different
 - Match `copy_context.language`
 - Do not invent claims, numbers, testimonials, or guarantees
