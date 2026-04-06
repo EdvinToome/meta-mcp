@@ -13,7 +13,11 @@ Read:
 - `~/.meta-marketing-plugin/brand_dna.yaml`
 - `.claude/meta-marketing-plugin/site-profiles.local.json` and resolve `site_profile`
 
-Inspect `target_url` and keep only verified page facts.
+If chrome devtools tools are available, inspect `target_url` with:
+1. `new_page(target_url)`
+2. `take_snapshot(verbose=false)`
+Use the snapshot as the primary source of verified page facts.
+If chrome devtools tools are not available, very briefly inspect `target_url` with available tools and keep only verified page facts.
 
 Use the `ad-creative` skill by name. If it is unavailable, apply the same method: strong hook, concrete benefits, social proof, clear offer, direct CTA.
 

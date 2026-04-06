@@ -8,7 +8,8 @@ Primary entry command: `/meta-ads-morning-review`.
 
 Read:
 - `.claude/meta-marketing-plugin/site-profiles.local.json`
-- `.claude/meta-marketing-plugin/brand_dna.yaml`
+
+Load `.claude/meta-marketing-plugin/brand_dna.yaml` only when the user asks for brand-voice recommendations.
 
 Workflow:
 1. Pull yesterday ad-level results for active profiles.
