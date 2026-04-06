@@ -66,12 +66,10 @@ function getClaudeConfigPath() {
 
 const projectRoot = path.resolve(readArg("--project") || process.cwd());
 const claudeMetaRoot = path.join(projectRoot, ".claude", "meta-marketing-plugin");
-const commandsRoot = path.join(claudeMetaRoot, ".claude", "commands");
-const agentsRoot = path.join(claudeMetaRoot, ".claude", "agents");
+const commandsRoot = path.join(claudeMetaRoot, "commands");
+const agentsRoot = path.join(claudeMetaRoot,  "agents");
 const claudePath = path.join(projectRoot, "CLAUDE.md");
 const claudeConfigPath = getClaudeConfigPath();
-const globalMetaRoot = path.join(os.homedir(), ".meta-marketing-plugin");
-const globalBrandDnaPath = path.join(globalMetaRoot, "brand_dna.yaml");
 
 function removePath(targetPath) {
   if (!fs.existsSync(targetPath)) {
