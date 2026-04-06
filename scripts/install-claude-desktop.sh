@@ -59,16 +59,32 @@ run_cmd() {
   "$@"
 }
 
+add_marketplace() {
+  local source="$1"
+  if [[ -d "$source" ]]; then
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+      printf '[dry-run] (cd %s && claude plugin marketplace add ./)\n' "$source"
+    else
+      (
+        cd "$source"
+        claude plugin marketplace add ./
+      )
+    fi
+    return
+  fi
+  run_cmd claude plugin marketplace add "$source"
+}
+
 install_or_update_marketplace() {
   local listed
   listed="$(claude plugin marketplace list 2>/dev/null || true)"
   if printf '%s' "$listed" | grep -q "meta-marketing-plugin-marketplace"; then
     if ! run_cmd claude plugin marketplace update meta-marketing-plugin-marketplace; then
       run_cmd claude plugin marketplace remove meta-marketing-plugin-marketplace
-      run_cmd claude plugin marketplace add "$MARKETPLACE_SOURCE"
+      add_marketplace "$MARKETPLACE_SOURCE"
     fi
   else
-    run_cmd claude plugin marketplace add "$MARKETPLACE_SOURCE"
+    add_marketplace "$MARKETPLACE_SOURCE"
   fi
 }
 
@@ -125,7 +141,10 @@ fi
 if [[ "$DRY_RUN" -ne 1 && -z "$META_ACCESS_TOKEN" ]]; then
   META_ACCESS_TOKEN="$(prompt_secret 'META_ACCESS_TOKEN: ')"
 fi
-META_ACCESS_TOKEN="${META_ACCESS_TOKEN//$'\r'/}"
+META_ACCESS_TOKEN="$(
+  printf '%s' "$META_ACCESS_TOKEN" \
+    | sed -E "s/\r//g; s/^[[:space:]]*META_ACCESS_TOKEN[[:space:]]*=[[:space:]]*//; s/^['\"]//; s/['\"]$//"
+)"
 
 [[ -n "$META_ACCESS_TOKEN" || "$DRY_RUN" -eq 1 ]] || die "META_ACCESS_TOKEN is required"
 

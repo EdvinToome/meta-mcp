@@ -34,6 +34,16 @@ function readArg(name) {
   return index === -1 ? "" : args[index + 1] || "";
 }
 
+function normalizeMetaAccessToken(rawToken) {
+  let token = rawToken.trim().replace(/\r/g, "");
+  const tokenPrefix = /^META_ACCESS_TOKEN\s*=\s*/;
+  while (tokenPrefix.test(token)) {
+    token = token.replace(tokenPrefix, "").trim();
+  }
+  token = token.replace(/^['"]|['"]$/g, "");
+  return token;
+}
+
 function getClaudeConfigPath() {
   switch (process.platform) {
     case "darwin":
@@ -164,7 +174,9 @@ function ensureGitignoreEntries() {
     "meta-marketing-plugin/site-profiles.local.json",
     "meta-marketing-plugin/.mcp.json",
     "meta-marketing-plugin/meta.env",
+    "meta-marketing-plugin/package.json",
     "meta-marketing-plugin/build/",
+    "meta-marketing-plugin/node_modules/",
     "meta-marketing-plugin/agents/ad-copy-writer.md",
   ];
   const deprecatedEntries = [
@@ -235,6 +247,11 @@ function installClaudeAssets() {
     path.join(claudeMetaRoot, "build"),
     true
   );
+  fs.writeFileSync(
+    path.join(claudeMetaRoot, "package.json"),
+    `${JSON.stringify(runtimePackageJson(), null, 2)}\n`
+  );
+  installRuntimeDependencies();
 
   ensureProjectSiteProfiles();
   ensureGlobalBrandDna();
@@ -275,6 +292,41 @@ function ensureRepoBuild() {
   }
 }
 
+function runtimePackageJson() {
+  const rootPackage = JSON.parse(
+    fs.readFileSync(path.join(repoRoot, "package.json"), "utf8")
+  );
+
+  return {
+    name: "meta-marketing-plugin-runtime",
+    private: true,
+    type: rootPackage.type,
+    version: rootPackage.version,
+    description: rootPackage.description,
+    engines: rootPackage.engines,
+    dependencies: rootPackage.dependencies,
+  };
+}
+
+function installRuntimeDependencies() {
+  const targetNodeModules = path.join(claudeMetaRoot, "node_modules");
+  const sourceNodeModules = path.join(repoRoot, "node_modules");
+
+  if (fs.existsSync(sourceNodeModules)) {
+    copyDirectory(sourceNodeModules, targetNodeModules, true);
+    return;
+  }
+
+  const result = spawnSync(
+    "npm",
+    ["install", "--omit=dev", "--no-audit", "--no-fund"],
+    { cwd: claudeMetaRoot, stdio: "inherit" }
+  );
+  if (result.error || result.status !== 0) {
+    throw new Error("npm install failed for Claude runtime dependencies");
+  }
+}
+
 function getPrompt(rl, query) {
   return new Promise((resolve) => rl.question(query, resolve));
 }
@@ -289,7 +341,7 @@ async function main() {
   if (!metaAccessToken) {
     metaAccessToken = (await getPrompt(rl, "Meta Access Token: ")).trim();
   }
-  metaAccessToken = metaAccessToken.trim().replace(/\r/g, "");
+  metaAccessToken = normalizeMetaAccessToken(metaAccessToken);
   rl.close();
 
   if (!metaAccessToken) {
