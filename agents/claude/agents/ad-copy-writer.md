@@ -1,7 +1,7 @@
 ---
 name: ad-copy-writer
 description: Meta ad copy subagent that returns builder-ready structured payloads.
-model: haiku
+model: sonnet
 tools: Read, Grep, Glob, Bash
 skills:
   - ad-creative
