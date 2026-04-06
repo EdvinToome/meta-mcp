@@ -66,8 +66,9 @@ function getClaudeConfigPath() {
 
 const projectRoot = path.resolve(readArg("--project") || process.cwd());
 const claudeMetaRoot = path.join(projectRoot, ".claude", "meta-marketing-plugin");
-const commandsRoot = path.join(claudeMetaRoot, "commands");
-const agentsRoot = path.join(claudeMetaRoot,  "agents");
+const claudeRoot = path.join(projectRoot, ".claude");
+const commandsRoot = path.join(claudeRoot, "commands");
+const agentsRoot = path.join(claudeRoot, "agents");
 const claudePath = path.join(projectRoot, "CLAUDE.md");
 const claudeConfigPath = getClaudeConfigPath();
 
@@ -207,6 +208,7 @@ function ensureGlobalBrandDna() {
 
 function installClaudeAssets() {
   ensureDirectory(claudeMetaRoot);
+  ensureDirectory(claudeRoot);
   copyDirectory(
     path.join(claudeSourcesDir, "skills"),
     path.join(claudeMetaRoot, "skills"),
@@ -235,6 +237,9 @@ function installClaudeAssets() {
 
   ensureProjectSiteProfiles();
   ensureGlobalBrandDna();
+
+  removePath(path.join(claudeMetaRoot, "commands"));
+  removePath(path.join(claudeMetaRoot, "agents"));
 
   ensureDirectory(agentsRoot);
   copyFile(
@@ -299,6 +304,7 @@ async function main() {
       "Meta plugin project files:",
       "- `.claude/meta-marketing-plugin/site-profiles.local.json`",
       "- `.claude/meta-marketing-plugin/.mcp.json`",
+      "- `.claude/meta-marketing-plugin/brand_dna.yaml`",
       "- `.claude/agents/ad-copy-writer.md`",
       "Available slash commands:",
       "- `/meta-ads-builder`",

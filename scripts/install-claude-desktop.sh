@@ -167,7 +167,7 @@ if [[ "$FORCE" -eq 1 ]]; then
 fi
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
-  printf '[dry-run] node %s/scripts/setup-claude.js %s\n' "$repo_root" "${setup_args[*]}"
+  printf '[dry-run] node %s/meta-mcp/scripts/setup-claude.js %s\n' "$repo_root" "${setup_args[*]}"
 else
   node "$repo_root/meta-mcp/scripts/setup-claude.js" "${setup_args[@]}"
 fi

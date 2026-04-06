@@ -7,7 +7,7 @@ import { spawnSync } from "child_process";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const pluginRoot = path.resolve(__dirname, "..", "..");
+const pluginRoot = path.resolve(__dirname, "..");
 const entry = path.join(pluginRoot, "build", "index.js");
 
 if (!fs.existsSync(entry)) {
