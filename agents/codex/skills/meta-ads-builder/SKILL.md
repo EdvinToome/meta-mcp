@@ -16,7 +16,7 @@ Workflow:
    - `target_url`
    - `creative_description`
    - `site_profile`
-4. Require structured return:
+4. Require structured return, by default 3 variants, one for each audience:
    - `copy_context`
    - `copy_variants` (`parents`, `teachers`, `general`)
 5. Execute `mcp__meta_marketing_plugin__run_structured_ad_build`.

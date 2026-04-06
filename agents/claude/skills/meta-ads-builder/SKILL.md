@@ -13,7 +13,7 @@ Read:
 Workflow:
 1. Resolve `site_profile` from project profiles.
 2. Resolve image, `target_url`, budget, status, CTA.
-3. Delegate copy to subagent `ad-copy-writer` with:
+3. Delegate copy to subagent `ad-copy-writer` with, by default 3 variants, one for each audience:
    - `target_url`
    - `creative_description`
    - `site_profile`
