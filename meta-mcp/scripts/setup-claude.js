@@ -66,8 +66,8 @@ function getClaudeConfigPath() {
 
 const projectRoot = path.resolve(readArg("--project") || process.cwd());
 const claudeMetaRoot = path.join(projectRoot, ".claude", "meta-marketing-plugin");
-const commandsRoot = path.join(projectRoot, ".claude", "commands");
-const agentsRoot = path.join(projectRoot, ".claude", "agents");
+const commandsRoot = path.join(claudeMetaRoot, ".claude", "commands");
+const agentsRoot = path.join(claudeMetaRoot, ".claude", "agents");
 const claudePath = path.join(projectRoot, "CLAUDE.md");
 const claudeConfigPath = getClaudeConfigPath();
 const globalMetaRoot = path.join(os.homedir(), ".meta-marketing-plugin");
@@ -315,7 +315,6 @@ async function main() {
   console.log(`Claude bundle: ${claudeMetaRoot}`);
   console.log(`Commands: ${commandsRoot}`);
   console.log(`Subagent: ${path.join(agentsRoot, "ad-copy-writer.md")}`);
-  console.log(`Global brand DNA: ${globalBrandDnaPath}`);
   console.log(`Claude MCP config: ${claudeConfigPath}`);
 }
 
