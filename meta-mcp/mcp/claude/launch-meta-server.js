@@ -7,11 +7,16 @@ import { spawnSync } from "child_process";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const pluginRoot = path.resolve(__dirname, "..");
-const entry = path.join(pluginRoot, "build", "index.js");
+const entryCandidates = [
+  path.join(path.resolve(__dirname, ".."), "build", "index.js"),
+  path.join(path.resolve(__dirname, "..", ".."), "build", "index.js"),
+];
+const entry = entryCandidates.find((candidate) => fs.existsSync(candidate));
 
-if (!fs.existsSync(entry)) {
-  throw new Error(`Missing build at ${entry}. Run npm run build.`);
+if (!entry) {
+  throw new Error(
+    `Missing build at ${entryCandidates.join(" or ")}. Run npm run build.`
+  );
 }
 
 const result = spawnSync(process.execPath, [entry, ...process.argv.slice(2)], {

@@ -67,8 +67,8 @@ function getClaudeConfigPath() {
 const projectRoot = path.resolve(readArg("--project") || process.cwd());
 const claudeMetaRoot = path.join(projectRoot, ".claude", "meta-marketing-plugin");
 const claudeRoot = path.join(projectRoot, ".claude");
-const commandsRoot = path.join(claudeRoot, "commands");
-const agentsRoot = path.join(claudeRoot, "agents");
+const skillsRoot = path.join(claudeRoot, "skills");
+const agentsRoot = path.join(claudeMetaRoot, "agents");
 const claudePath = path.join(projectRoot, "CLAUDE.md");
 const claudeConfigPath = getClaudeConfigPath();
 
@@ -153,9 +153,12 @@ function ensureGitignoreEntries() {
     "meta-marketing-plugin/site-profiles.local.json",
     "meta-marketing-plugin/.mcp.json",
     "meta-marketing-plugin/build/",
-    "agents/ad-copy-writer.md",
+    "meta-marketing-plugin/agents/ad-copy-writer.md",
+  ];
+  const deprecatedEntries = [
     "commands/meta-ads-builder.md",
     "commands/meta-ads-morning-review.md",
+    "agents/ad-copy-writer.md",
   ];
 
   ensureDirectory(path.dirname(gitignorePath));
@@ -163,31 +166,17 @@ function ensureGitignoreEntries() {
     fs.writeFileSync(gitignorePath, "");
   }
 
-  const existing = fs.readFileSync(gitignorePath, "utf8").split("\n");
+  const existing = fs
+    .readFileSync(gitignorePath, "utf8")
+    .split("\n")
+    .filter((line) => !deprecatedEntries.includes(line));
   const missing = entries.filter((entry) => !existing.includes(entry));
-  if (missing.length === 0) {
+  if (missing.length === 0 && existing.length > 0) {
+    fs.writeFileSync(gitignorePath, `${existing.join("\n").trimEnd()}\n`);
     return;
   }
   const next = `${existing.join("\n").trimEnd()}\n${missing.join("\n")}\n`;
   fs.writeFileSync(gitignorePath, next.replace(/^\n/, ""));
-}
-
-function installSlashCommands() {
-  ensureDirectory(commandsRoot);
-  const files = ["meta-ads-builder.md", "meta-ads-morning-review.md"];
-
-  for (const file of fs.readdirSync(commandsRoot)) {
-    if (file.endsWith(".md") && !files.includes(file)) {
-      removePath(path.join(commandsRoot, file));
-    }
-  }
-
-  for (const file of files) {
-    fs.copyFileSync(
-      path.join(claudeSourcesDir, "commands", file),
-      path.join(commandsRoot, file)
-    );
-  }
 }
 
 function ensureProjectSiteProfiles() {
@@ -211,7 +200,7 @@ function installClaudeAssets() {
   ensureDirectory(claudeRoot);
   copyDirectory(
     path.join(claudeSourcesDir, "skills"),
-    path.join(claudeMetaRoot, "skills"),
+    skillsRoot,
     true
   );
   copyFile(
@@ -238,8 +227,10 @@ function installClaudeAssets() {
   ensureProjectSiteProfiles();
   ensureGlobalBrandDna();
 
+  removePath(path.join(claudeRoot, "commands"));
   removePath(path.join(claudeMetaRoot, "commands"));
-  removePath(path.join(claudeMetaRoot, "agents"));
+  removePath(path.join(claudeMetaRoot, "skills"));
+  removePath(path.join(claudeRoot, "agents"));
 
   ensureDirectory(agentsRoot);
   copyFile(
@@ -247,8 +238,6 @@ function installClaudeAssets() {
     path.join(agentsRoot, "ad-copy-writer.md"),
     true
   );
-
-  installSlashCommands();
 }
 
 function ensureRepoBuild() {
@@ -305,10 +294,8 @@ async function main() {
       "- `.claude/meta-marketing-plugin/site-profiles.local.json`",
       "- `.claude/meta-marketing-plugin/.mcp.json`",
       "- `.claude/meta-marketing-plugin/brand_dna.yaml`",
-      "- `.claude/agents/ad-copy-writer.md`",
-      "Available slash commands:",
-      "- `/meta-ads-builder`",
-      "- `/meta-ads-morning-review`",
+      "- `.claude/meta-marketing-plugin/agents/ad-copy-writer.md`",
+      "- `.claude/skills/meta-ads-builder/SKILL.md`",
     ]
   );
   writeGlobalClaudeConfig(metaAccessToken);
@@ -317,7 +304,7 @@ async function main() {
   console.log("Installed Meta Marketing Plugin support for Claude Code");
   console.log(`Project: ${projectRoot}`);
   console.log(`Claude bundle: ${claudeMetaRoot}`);
-  console.log(`Commands: ${commandsRoot}`);
+  console.log(`Skills: ${skillsRoot}`);
   console.log(`Subagent: ${path.join(agentsRoot, "ad-copy-writer.md")}`);
   console.log(`Claude MCP config: ${claudeConfigPath}`);
 }
