@@ -11,4 +11,9 @@ site-profiles.local.json
 brand_dna.yaml
 AGENTS.local.md
 .claude/meta-marketing-plugin/site-profiles.local.json
+.claude/meta-marketing-plugin/.mcp.json
+.claude/meta-marketing-plugin/build/
+.claude/agents/ad-copy-writer.md
+.claude/commands/meta-ads-builder.md
+.claude/commands/meta-ads-morning-review.md
 dist

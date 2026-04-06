@@ -143,7 +143,7 @@ trap cleanup EXIT
 if [[ -n "${BASH_SOURCE[0]:-}" && -f "${BASH_SOURCE[0]}" ]]; then
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   candidate_root="$(cd "${script_dir}/.." && pwd)"
-  if [[ -f "${candidate_root}/scripts/setup-claude.js" ]]; then
+  if [[ -f "${candidate_root}/meta-mcp/scripts/setup-claude.js" ]]; then
     repo_root="$candidate_root"
   fi
 fi
@@ -169,13 +169,14 @@ fi
 if [[ "$DRY_RUN" -eq 1 ]]; then
   printf '[dry-run] node %s/scripts/setup-claude.js %s\n' "$repo_root" "${setup_args[*]}"
 else
-  node "$repo_root/scripts/setup-claude.js" "${setup_args[@]}"
+  node "$repo_root/meta-mcp/scripts/setup-claude.js" "${setup_args[@]}"
 fi
 
 log ""
 log "Setup complete."
 log "Project: ${PROJECT_DIR}"
 log "Plugin scope: ${PLUGIN_SCOPE}"
-log "Global MCP server: meta"
-log "Commands: /meta-ads-builder, /meta-ads-consultant, /meta-ads-morning-review, /ad-copy-writer"
+log "Global MCP server: meta-marketing-plugin"
+log "MCP runtime: local build via .claude/meta-marketing-plugin/scripts/launch-meta-server.js"
+log "Commands: /meta-ads-builder, /meta-ads-morning-review"
 log "Then restart Claude Code Desktop if it was already open."

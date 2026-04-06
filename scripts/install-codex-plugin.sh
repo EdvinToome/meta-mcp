@@ -36,9 +36,9 @@ if [[ -n "${BASH_SOURCE[0]:-}" && -f "${BASH_SOURCE[0]}" ]]; then
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   repo_root="$(cd "${script_dir}/.." && pwd)"
 
-  if [[ -f "${repo_root}/scripts/setup-codex-plugin.js" ]]; then
+  if [[ -f "${repo_root}/meta-mcp/scripts/setup-codex-plugin.js" ]]; then
     need_cmd node
-    exec node "${repo_root}/scripts/setup-codex-plugin.js" "$@"
+    exec node "${repo_root}/meta-mcp/scripts/setup-codex-plugin.js" "$@"
   fi
 fi
 
@@ -53,4 +53,4 @@ cleanup() {
 trap cleanup EXIT
 
 git clone --depth 1 --branch "${REPO_REF}" "${REPO_URL}" "$temp_dir" >/dev/null
-exec node "${temp_dir}/scripts/setup-codex-plugin.js" "$@"
+exec node "${temp_dir}/meta-mcp/scripts/setup-codex-plugin.js" "$@"

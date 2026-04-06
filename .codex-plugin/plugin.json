@@ -1,7 +1,7 @@
 {
   "name": "meta-marketing-plugin",
   "version": "1.7.2",
-  "description": "Meta Marketing MCP bundle with builder, consultant, morning review, and ad copy writer workflows for Codex.",
+  "description": "Meta Marketing MCP bundle with codex-specific skills and MCP tooling.",
   "author": {
     "name": "Edvin Toome",
     "email": "noreply@example.invalid",
@@ -17,12 +17,12 @@
     "instagram-ads",
     "codex-plugin"
   ],
-  "skills": "./agent/skills/",
-  "mcpServers": "./hosts/codex/mcp.json",
+  "skills": "./agents/codex/skills/",
+  "mcpServers": "./meta-mcp/mcp/codex/mcp.json",
   "interface": {
     "displayName": "Meta Marketing Plugin",
     "shortDescription": "Publish, review, and diagnose Meta ads with saved site profiles.",
-    "longDescription": "Bundles Meta Marketing MCP workflows for Codex with profile-aware builder, consultant, morning review, and an ad-copy subagent workflow.",
+    "longDescription": "Bundles Codex-specific Meta workflows, global profile handling, and MCP runtime wiring.",
     "developerName": "Edvin Toome",
     "category": "Productivity",
     "capabilities": [

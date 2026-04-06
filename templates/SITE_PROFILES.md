@@ -2,14 +2,6 @@
 
 Define one profile per website or brand in `site-profiles.local.json`.
 
-Use `site-profiles.example.json` as the starter template.
-
-You can create the local file with:
-
-```bash
-npm run init:workspace
-```
-
 Use this shape:
 
 ```json
