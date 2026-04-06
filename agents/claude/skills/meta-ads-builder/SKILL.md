@@ -8,7 +8,7 @@ Primary entry command: `/meta-ads-builder`.
 
 Read:
 - `.claude/meta-marketing-plugin/site-profiles.local.json`
-- `~/.meta-marketing-plugin/brand_dna.yaml`
+- `.claude/meta-marketing-plugin/brand_dna.yaml`
 
 Workflow:
 1. Resolve `site_profile` from project profiles.

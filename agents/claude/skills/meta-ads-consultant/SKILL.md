@@ -7,6 +7,7 @@ Use this for issue diagnosis and performance debugging in Claude.
 
 Read:
 - `.claude/meta-marketing-plugin/site-profiles.local.json`
+- `.claude/meta-marketing-plugin/brand_dna.yaml`
 
 Workflow:
 1. Resolve account from `site_profile`.

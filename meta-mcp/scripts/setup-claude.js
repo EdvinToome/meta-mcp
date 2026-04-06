@@ -200,9 +200,10 @@ function ensureProjectSiteProfiles() {
 }
 
 function ensureGlobalBrandDna() {
-  ensureDirectory(globalMetaRoot);
-  if (!fs.existsSync(globalBrandDnaPath)) {
-    fs.writeFileSync(globalBrandDnaPath, DEFAULT_BRAND_DNA);
+  const dnaPath = path.join(claudeMetaRoot, "brand_dna.yaml");
+  ensureDirectory(path.dirname(dnaPath));
+  if (!fs.existsSync(dnaPath)) {
+    fs.writeFileSync(dnaPath, DEFAULT_BRAND_DNA);
   }
 }
 
