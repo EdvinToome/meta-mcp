@@ -122,6 +122,7 @@ fi
 if [[ "$DRY_RUN" -ne 1 && -z "$META_ACCESS_TOKEN" ]]; then
   META_ACCESS_TOKEN="$(prompt_secret 'META_ACCESS_TOKEN: ')"
 fi
+META_ACCESS_TOKEN="${META_ACCESS_TOKEN//$'\r'/}"
 
 [[ -n "$META_ACCESS_TOKEN" || "$DRY_RUN" -eq 1 ]] || die "META_ACCESS_TOKEN is required"
 

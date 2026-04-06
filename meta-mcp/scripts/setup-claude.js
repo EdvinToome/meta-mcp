@@ -71,6 +71,7 @@ const skillsRoot = path.join(claudeRoot, "skills");
 const agentsRoot = path.join(claudeMetaRoot, "agents");
 const claudePath = path.join(projectRoot, "CLAUDE.md");
 const claudeConfigPath = getClaudeConfigPath();
+const projectMetaEnvPath = path.join(claudeMetaRoot, "meta.env");
 
 function removePath(targetPath) {
   if (!fs.existsSync(targetPath)) {
@@ -128,16 +129,14 @@ function writeGlobalClaudeConfig(metaAccessToken) {
     ? JSON.parse(fs.readFileSync(claudeConfigPath, "utf8"))
     : {};
   const existingServer = payload.mcpServers?.["meta-marketing-plugin"] || {};
-  const existingEnv = existingServer.env || {};
+  const existingEnv = { ...(existingServer.env || {}) };
+  delete existingEnv.META_ACCESS_TOKEN;
 
   payload.mcpServers ||= {};
   payload.mcpServers["meta-marketing-plugin"] = {
     command: "node",
     args: [path.join(claudeMetaRoot, "scripts", "launch-meta-server.js")],
-    env: {
-      ...existingEnv,
-      META_ACCESS_TOKEN: metaAccessToken,
-    },
+    ...(Object.keys(existingEnv).length > 0 ? { env: existingEnv } : {}),
   };
   if (payload.mcpServers.meta) {
     delete payload.mcpServers.meta;
@@ -147,11 +146,24 @@ function writeGlobalClaudeConfig(metaAccessToken) {
   fs.writeFileSync(claudeConfigPath, `${JSON.stringify(payload, null, 2)}\n`);
 }
 
+function writeProjectMetaEnv(metaAccessToken) {
+  ensureDirectory(path.dirname(projectMetaEnvPath));
+  const source = fs.existsSync(projectMetaEnvPath)
+    ? fs.readFileSync(projectMetaEnvPath, "utf8")
+    : "";
+  const lines = source
+    .split("\n")
+    .filter((line) => line && !line.startsWith("META_ACCESS_TOKEN="));
+  lines.unshift(`META_ACCESS_TOKEN=${metaAccessToken}`);
+  fs.writeFileSync(projectMetaEnvPath, `${lines.join("\n")}\n`);
+}
+
 function ensureGitignoreEntries() {
   const gitignorePath = path.join(projectRoot, ".claude", ".gitignore");
   const entries = [
     "meta-marketing-plugin/site-profiles.local.json",
     "meta-marketing-plugin/.mcp.json",
+    "meta-marketing-plugin/meta.env",
     "meta-marketing-plugin/build/",
     "meta-marketing-plugin/agents/ad-copy-writer.md",
   ];
@@ -277,6 +289,7 @@ async function main() {
   if (!metaAccessToken) {
     metaAccessToken = (await getPrompt(rl, "Meta Access Token: ")).trim();
   }
+  metaAccessToken = metaAccessToken.trim().replace(/\r/g, "");
   rl.close();
 
   if (!metaAccessToken) {
@@ -299,6 +312,7 @@ async function main() {
     ]
   );
   writeGlobalClaudeConfig(metaAccessToken);
+  writeProjectMetaEnv(metaAccessToken);
   ensureGitignoreEntries();
 
   console.log("Installed Meta Marketing Plugin support for Claude Code");

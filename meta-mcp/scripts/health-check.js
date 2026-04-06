@@ -61,6 +61,7 @@ function assertServer(server) {
   const pluginRoot = path.resolve(path.dirname(launchPath), "..");
   const buildEntry = path.join(pluginRoot, "build", "index.js");
   const localMcpJson = path.join(pluginRoot, ".mcp.json");
+  const localMetaEnv = path.join(pluginRoot, "meta.env");
 
   if (!fs.existsSync(buildEntry)) {
     throw new Error(`Build entry not found: ${buildEntry}`);
@@ -68,8 +69,17 @@ function assertServer(server) {
   if (!fs.existsSync(localMcpJson)) {
     throw new Error(`Local mcp json not found: ${localMcpJson}`);
   }
-  if (!server.env?.META_ACCESS_TOKEN) {
-    throw new Error("META_ACCESS_TOKEN is missing in Claude MCP config");
+  const hasServerToken = !!server.env?.META_ACCESS_TOKEN;
+  const hasProjectToken = fs.existsSync(localMetaEnv)
+    ? fs
+        .readFileSync(localMetaEnv, "utf8")
+        .split("\n")
+        .some((line) => line.startsWith("META_ACCESS_TOKEN="))
+    : false;
+  if (!hasServerToken && !hasProjectToken) {
+    throw new Error(
+      "META_ACCESS_TOKEN is missing in Claude MCP config and project meta.env"
+    );
   }
 }
 

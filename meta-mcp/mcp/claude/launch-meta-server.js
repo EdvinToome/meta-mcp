@@ -12,6 +12,8 @@ const entryCandidates = [
   path.join(path.resolve(__dirname, "..", ".."), "build", "index.js"),
 ];
 const entry = entryCandidates.find((candidate) => fs.existsSync(candidate));
+const pluginRoot = path.resolve(path.dirname(entry || entryCandidates[0]), "..");
+const localMetaEnvPath = path.join(pluginRoot, "meta.env");
 
 if (!entry) {
   throw new Error(
@@ -19,7 +21,30 @@ if (!entry) {
   );
 }
 
+const localEnv = {};
+if (fs.existsSync(localMetaEnvPath)) {
+  const source = fs.readFileSync(localMetaEnvPath, "utf8");
+  for (const line of source.split("\n")) {
+    if (!line || line.startsWith("#")) {
+      continue;
+    }
+    const idx = line.indexOf("=");
+    if (idx < 1) {
+      continue;
+    }
+    const key = line.slice(0, idx).trim();
+    const value = line.slice(idx + 1).trim().replace(/^"|"$/g, "");
+    if (key) {
+      localEnv[key] = value;
+    }
+  }
+}
+
 const result = spawnSync(process.execPath, [entry, ...process.argv.slice(2)], {
+  env: {
+    ...process.env,
+    ...localEnv,
+  },
   stdio: "inherit",
 });
 

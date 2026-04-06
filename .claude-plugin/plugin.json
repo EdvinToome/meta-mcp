@@ -1,9 +1,0 @@
-{
-  "name": "meta-marketing-plugin",
-  "version": "1.7.2",
-  "description": "Meta Marketing MCP workflows for Claude Code with host-specific skills, commands, and subagent setup.",
-  "author": {
-    "name": "Edvin Toome",
-    "url": "https://github.com/EdvinToome"
-  }
-}
