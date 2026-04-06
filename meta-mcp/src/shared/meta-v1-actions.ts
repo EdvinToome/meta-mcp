@@ -29,7 +29,7 @@ const textResult = (text: string): MetaToolResult => ({
 });
 
 const jsonResult = (payload: unknown): MetaToolResult =>
-  textResult(JSON.stringify(payload, null, 2));
+  textResult(JSON.stringify(payload));
 
 const errorResult = (text: string): MetaToolResult => ({
   content: [{ type: "text", text }],

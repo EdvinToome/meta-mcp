@@ -32,24 +32,34 @@ export function registerCreativeTools(
     "list_creatives",
     "List all ad creatives in an ad account. Use this to see existing creatives, their formats, and content before creating new ones or reusing existing creatives.",
     ListCreativesSchema.shape,
-    async ({ account_id, limit, after }) => {
+    async ({ account_id, limit, after, verbose }) => {
       try {
         const result = await metaClient.getAdCreatives(account_id, {
           limit,
           after,
         });
 
-        const creatives = result.data.map((creative) => ({
-          id: creative.id,
-          name: creative.name,
-          title: creative.title,
-          body: creative.body,
-          image_url: creative.image_url,
-          video_id: creative.video_id,
-          call_to_action: creative.call_to_action,
-          object_story_spec: creative.object_story_spec,
-          url_tags: creative.url_tags,
-        }));
+        const creatives = result.data.map((creative) =>
+          verbose
+            ? {
+                id: creative.id,
+                name: creative.name,
+                title: creative.title,
+                body: creative.body,
+                image_url: creative.image_url,
+                video_id: creative.video_id,
+                call_to_action: creative.call_to_action,
+                object_story_spec: creative.object_story_spec,
+                url_tags: creative.url_tags,
+              }
+            : {
+                id: creative.id,
+                name: creative.name,
+                title: creative.title,
+                image_url: creative.image_url,
+                video_id: creative.video_id,
+              },
+        );
 
         const response = {
           creatives,
@@ -61,13 +71,14 @@ export function registerCreativeTools(
           },
           total_count: creatives.length,
           account_id,
+          verbose: Boolean(verbose),
         };
 
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(response, null, 2),
+              text: JSON.stringify(response),
             },
           ],
         };

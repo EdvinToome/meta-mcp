@@ -34,7 +34,7 @@ export function registerCampaignTools(
     "list_campaigns",
     "Retrieve a paginated list of all campaigns for a Meta ad account. Filter by status (e.g., ACTIVE, PAUSED) and view key campaign details including budget, objective, and timing. Use this to audit or select campaigns for further actions.",
     ListCampaignsSchema.shape,
-    async ({ account_id, status, limit, after }) => {
+    async ({ account_id, status, limit, after, verbose }) => {
       try {
         const result = await metaClient.getCampaigns(account_id, {
           status: status ? [status] : undefined,
@@ -42,20 +42,31 @@ export function registerCampaignTools(
           after,
         });
 
-        const campaigns = result.data.map((campaign) => ({
-          id: campaign.id,
-          name: campaign.name,
-          objective: campaign.objective,
-          status: campaign.status,
-          effective_status: campaign.effective_status,
-          created_time: campaign.created_time,
-          updated_time: campaign.updated_time,
-          start_time: campaign.start_time,
-          stop_time: campaign.stop_time,
-          daily_budget: campaign.daily_budget,
-          lifetime_budget: campaign.lifetime_budget,
-          budget_remaining: campaign.budget_remaining,
-        }));
+        const campaigns = result.data.map((campaign) =>
+          verbose
+            ? {
+                id: campaign.id,
+                name: campaign.name,
+                objective: campaign.objective,
+                status: campaign.status,
+                effective_status: campaign.effective_status,
+                created_time: campaign.created_time,
+                updated_time: campaign.updated_time,
+                start_time: campaign.start_time,
+                stop_time: campaign.stop_time,
+                daily_budget: campaign.daily_budget,
+                lifetime_budget: campaign.lifetime_budget,
+                budget_remaining: campaign.budget_remaining,
+              }
+            : {
+                id: campaign.id,
+                name: campaign.name,
+                objective: campaign.objective,
+                status: campaign.status,
+                daily_budget: campaign.daily_budget,
+                lifetime_budget: campaign.lifetime_budget,
+              },
+        );
 
         const response = {
           campaigns,
@@ -66,13 +77,14 @@ export function registerCampaignTools(
             previous_cursor: result.paging?.cursors?.before,
           },
           total_count: campaigns.length,
+          verbose: Boolean(verbose),
         };
 
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(response, null, 2),
+              text: JSON.stringify(response),
             },
           ],
         };
@@ -293,7 +305,7 @@ export function registerCampaignTools(
     "list_ad_sets",
     "List all ad sets for a given campaign or ad account. Filter by status and paginate results. Returns ad set details including budget, targeting, and optimization settings.",
     ListAdSetsSchema.shape,
-    async ({ campaign_id, account_id, status, limit, after }) => {
+    async ({ campaign_id, account_id, status, limit, after, verbose }) => {
       try {
         if (!campaign_id && !account_id) {
           return {
@@ -315,22 +327,34 @@ export function registerCampaignTools(
           after,
         });
 
-        const adSets = result.data.map((adSet) => ({
-          id: adSet.id,
-          name: adSet.name,
-          campaign_id: adSet.campaign_id,
-          status: adSet.status,
-          effective_status: adSet.effective_status,
-          created_time: adSet.created_time,
-          updated_time: adSet.updated_time,
-          start_time: adSet.start_time,
-          end_time: adSet.end_time,
-          daily_budget: adSet.daily_budget,
-          lifetime_budget: adSet.lifetime_budget,
-          bid_amount: adSet.bid_amount,
-          billing_event: adSet.billing_event,
-          optimization_goal: adSet.optimization_goal,
-        }));
+        const adSets = result.data.map((adSet) =>
+          verbose
+            ? {
+                id: adSet.id,
+                name: adSet.name,
+                campaign_id: adSet.campaign_id,
+                status: adSet.status,
+                effective_status: adSet.effective_status,
+                created_time: adSet.created_time,
+                updated_time: adSet.updated_time,
+                start_time: adSet.start_time,
+                end_time: adSet.end_time,
+                daily_budget: adSet.daily_budget,
+                lifetime_budget: adSet.lifetime_budget,
+                bid_amount: adSet.bid_amount,
+                billing_event: adSet.billing_event,
+                optimization_goal: adSet.optimization_goal,
+              }
+            : {
+                id: adSet.id,
+                name: adSet.name,
+                campaign_id: adSet.campaign_id,
+                status: adSet.status,
+                daily_budget: adSet.daily_budget,
+                lifetime_budget: adSet.lifetime_budget,
+                optimization_goal: adSet.optimization_goal,
+              },
+        );
 
         const response = {
           ad_sets: adSets,
@@ -341,13 +365,14 @@ export function registerCampaignTools(
             previous_cursor: result.paging?.cursors?.before,
           },
           total_count: adSets.length,
+          verbose: Boolean(verbose),
         };
 
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(response, null, 2),
+              text: JSON.stringify(response),
             },
           ],
         };

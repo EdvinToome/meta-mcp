@@ -117,9 +117,13 @@ async function main() {
     // Add server health check tool
     server.tool("health_check", {}, async () => healthCheckAction(metaClient));
 
+    const enableGuidanceTools =
+      process.env.META_MCP_ENABLE_GUIDANCE_TOOLS === "1";
+
     // Add server capabilities info
-    server.tool("get_capabilities", {}, async () => {
-      const capabilities = {
+    if (enableGuidanceTools) {
+      server.tool("get_capabilities", {}, async () => {
+        const capabilities = {
         server_info: {
           name: "Meta Marketing API Server",
           version: "1.0.0",
@@ -316,23 +320,23 @@ async function main() {
         },
       };
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(capabilities, null, 2),
-          },
-        ],
-      };
-    });
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(capabilities),
+            },
+          ],
+        };
+      });
 
-    // Add AI workflow guidance tool
-    server.tool(
-      "get_ai_guidance",
-      "Get comprehensive guidance for AI assistants on how to effectively use this Meta Marketing API server. Includes common workflows, tool combinations, troubleshooting tips, and best practices for campaign management and analytics.",
-      {},
-      async () => {
-        const guidance = {
+      // Add AI workflow guidance tool
+      server.tool(
+        "get_ai_guidance",
+        "Get comprehensive guidance for AI assistants on how to effectively use this Meta Marketing API server. Includes common workflows, tool combinations, troubleshooting tips, and best practices for campaign management and analytics.",
+        {},
+        async () => {
+          const guidance = {
           server_purpose: {
             description:
               "This MCP server provides comprehensive access to Meta (Facebook/Instagram) advertising capabilities including campaign management, performance analytics, audience targeting, and creative optimization.",
@@ -583,16 +587,22 @@ async function main() {
           ],
         };
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(guidance, null, 2),
-            },
-          ],
-        };
-      },
-    );
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(guidance),
+              },
+            ],
+          };
+        },
+      );
+      console.error("   ✅ Guidance tools registered");
+    } else {
+      console.error(
+        "   ⏭️  Guidance tools disabled (set META_MCP_ENABLE_GUIDANCE_TOOLS=1 to enable)",
+      );
+    }
 
     console.error("🔗 Connecting to MCP transport...");
     console.error(

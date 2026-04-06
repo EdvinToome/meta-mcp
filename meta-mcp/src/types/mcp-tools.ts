@@ -11,9 +11,14 @@ export const ListCampaignsSchema = z.object({
     .number()
     .min(1)
     .max(100)
-    .default(25)
+    .default(10)
     .describe("Number of campaigns to return"),
   after: z.string().optional().describe("Pagination cursor for next page"),
+  verbose: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe("Include full campaign fields in response"),
 });
 
 export const CreateCampaignSchema = z.object({
@@ -127,9 +132,14 @@ export const ListAdSetsSchema = z.object({
     .number()
     .min(1)
     .max(100)
-    .default(25)
+    .default(10)
     .describe("Number of ad sets to return"),
   after: z.string().optional().describe("Pagination cursor for next page"),
+  verbose: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe("Include full ad set fields in response"),
 });
 
 export const CreateAdSetSchema = z.object({
@@ -400,8 +410,13 @@ export const GetInsightsSchema = z.object({
     .number()
     .min(1)
     .max(100)
-    .default(25)
+    .default(10)
     .describe("Number of insights to return"),
+  verbose: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe("Include all raw insight fields in response"),
 });
 
 export const ComparePerformanceSchema = z.object({
@@ -491,9 +506,14 @@ export const ListAudiencesSchema = z.object({
     .number()
     .min(1)
     .max(100)
-    .default(25)
+    .default(10)
     .describe("Number of audiences to return"),
   after: z.string().optional().describe("Pagination cursor for next page"),
+  verbose: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe("Include full audience fields in response"),
 });
 
 export const CreateCustomAudienceSchema = z.object({
@@ -678,9 +698,14 @@ export const ListCreativesSchema = z.object({
     .number()
     .min(1)
     .max(100)
-    .default(25)
+    .default(10)
     .describe("Number of creatives to return"),
   after: z.string().optional().describe("Pagination cursor for next page"),
+  verbose: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe("Include full creative fields in response"),
 });
 
 export const CreateAdCreativeSchema = z.object({

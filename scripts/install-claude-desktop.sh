@@ -13,6 +13,7 @@ PLUGIN_SCOPE="user"
 META_ACCESS_TOKEN="${META_ACCESS_TOKEN:-}"
 FORCE=0
 DRY_RUN=0
+SKIP_PLUGIN_INSTALL=0
 
 usage() {
   cat <<'EOF'
@@ -41,6 +42,12 @@ die() {
 
 need_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"
+}
+
+project_has_meta_mcp() {
+  local project_mcp_file="$PROJECT_DIR/.mcp.json"
+  [[ -f "$project_mcp_file" ]] || return 1
+  grep -q '"meta-marketing-plugin"' "$project_mcp_file"
 }
 
 prompt_secret() {
@@ -148,11 +155,22 @@ META_ACCESS_TOKEN="$(
 
 [[ -n "$META_ACCESS_TOKEN" || "$DRY_RUN" -eq 1 ]] || die "META_ACCESS_TOKEN is required"
 
-log "Installing/updating Claude marketplace"
-install_or_update_marketplace
+if [[ -z "$MARKETPLACE_SOURCE" ]]; then
+  MARKETPLACE_SOURCE="https://github.com/${REPO_SLUG}"
+fi
 
-log "Installing/updating plugin ${PLUGIN_ID}"
-install_or_update_plugin
+if project_has_meta_mcp; then
+  SKIP_PLUGIN_INSTALL=1
+  log "Project .mcp.json already defines meta-marketing-plugin; skipping plugin marketplace install/update to avoid duplicate MCP loading."
+fi
+
+if [[ "$SKIP_PLUGIN_INSTALL" -eq 0 ]]; then
+  log "Installing/updating Claude marketplace"
+  install_or_update_marketplace
+
+  log "Installing/updating plugin ${PLUGIN_ID}"
+  install_or_update_plugin
+fi
 
 repo_root=""
 temp_dir=""

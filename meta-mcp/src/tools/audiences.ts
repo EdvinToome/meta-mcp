@@ -22,7 +22,7 @@ export function registerAudienceTools(
   server.tool(
     "list_audiences",
     ListAudiencesSchema.shape,
-    async ({ account_id, type, limit, after }) => {
+    async ({ account_id, type, limit, after, verbose }) => {
       try {
         const result = await metaClient.getCustomAudiences(account_id, {
           limit,
@@ -39,18 +39,28 @@ export function registerAudienceTools(
           });
         }
 
-        const formattedAudiences = audiences.map((audience) => ({
-          id: audience.id,
-          name: audience.name,
-          description: audience.description,
-          type: audience.subtype === "LOOKALIKE" ? "lookalike" : "custom",
-          subtype: audience.subtype,
-          approximate_count: audience.approximate_count,
-          data_source: audience.data_source,
-          retention_days: audience.retention_days,
-          creation_time: audience.creation_time,
-          operation_status: audience.operation_status,
-        }));
+        const formattedAudiences = audiences.map((audience) =>
+          verbose
+            ? {
+                id: audience.id,
+                name: audience.name,
+                description: audience.description,
+                type: audience.subtype === "LOOKALIKE" ? "lookalike" : "custom",
+                subtype: audience.subtype,
+                approximate_count: audience.approximate_count,
+                data_source: audience.data_source,
+                retention_days: audience.retention_days,
+                creation_time: audience.creation_time,
+                operation_status: audience.operation_status,
+              }
+            : {
+                id: audience.id,
+                name: audience.name,
+                type: audience.subtype === "LOOKALIKE" ? "lookalike" : "custom",
+                approximate_count: audience.approximate_count,
+                creation_time: audience.creation_time,
+              },
+        );
 
         const response = {
           audiences: formattedAudiences,
@@ -62,13 +72,14 @@ export function registerAudienceTools(
           },
           total_count: formattedAudiences.length,
           filter_applied: type || "all",
+          verbose: Boolean(verbose),
         };
 
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(response, null, 2),
+              text: JSON.stringify(response),
             },
           ],
         };

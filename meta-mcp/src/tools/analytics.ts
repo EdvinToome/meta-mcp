@@ -30,11 +30,12 @@ export function registerAnalyticsTools(
       fields,
       breakdowns,
       limit,
+      verbose,
     }) => {
       try {
         const params: Record<string, any> = {
           level,
-          limit: limit || 25,
+          limit: limit || 10,
         };
 
         if (date_preset) {
@@ -55,27 +56,40 @@ export function registerAnalyticsTools(
 
         const result = await metaClient.getInsights(object_id, params);
 
-        const insights = result.data.map((insight) => ({
-          date_start: insight.date_start,
-          date_stop: insight.date_stop,
-          impressions: insight.impressions,
-          clicks: insight.clicks,
-          spend: insight.spend,
-          reach: insight.reach,
-          frequency: insight.frequency,
-          ctr: insight.ctr,
-          cpc: insight.cpc,
-          cpm: insight.cpm,
-          cpp: insight.cpp,
-          actions: insight.actions,
-          cost_per_action_type: insight.cost_per_action_type,
-          video_views: insight.video_views,
-          video_view_time: insight.video_view_time,
-          account_id: insight.account_id,
-          campaign_id: insight.campaign_id,
-          adset_id: insight.adset_id,
-          ad_id: insight.ad_id,
-        }));
+        const insights = result.data.map((insight) =>
+          verbose
+            ? {
+                date_start: insight.date_start,
+                date_stop: insight.date_stop,
+                impressions: insight.impressions,
+                clicks: insight.clicks,
+                spend: insight.spend,
+                reach: insight.reach,
+                frequency: insight.frequency,
+                ctr: insight.ctr,
+                cpc: insight.cpc,
+                cpm: insight.cpm,
+                cpp: insight.cpp,
+                actions: insight.actions,
+                cost_per_action_type: insight.cost_per_action_type,
+                video_views: insight.video_views,
+                video_view_time: insight.video_view_time,
+                account_id: insight.account_id,
+                campaign_id: insight.campaign_id,
+                adset_id: insight.adset_id,
+                ad_id: insight.ad_id,
+              }
+            : {
+                date_start: insight.date_start,
+                date_stop: insight.date_stop,
+                impressions: insight.impressions,
+                clicks: insight.clicks,
+                spend: insight.spend,
+                ctr: insight.ctr,
+                cpc: insight.cpc,
+                cpm: insight.cpm,
+              },
+        );
 
         // Calculate summary statistics
         const summary = calculateSummaryMetrics(insights);
@@ -96,6 +110,7 @@ export function registerAnalyticsTools(
             time_range,
             fields,
             breakdowns,
+            verbose: Boolean(verbose),
           },
           total_count: insights.length,
         };
@@ -104,7 +119,7 @@ export function registerAnalyticsTools(
           content: [
             {
               type: "text",
-              text: JSON.stringify(response, null, 2),
+              text: JSON.stringify(response),
             },
           ],
         };
