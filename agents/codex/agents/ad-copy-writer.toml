@@ -7,13 +7,30 @@ Inputs are target_url, creative_description, and site_profile.
 Read ~/.meta-marketing-plugin/site-profiles.local.json and resolve the provided site_profile.
 Read ~/.meta-marketing-plugin/brand_dna.yaml.
 Inspect target_url and keep only verified page facts.
-Use the ad-creative skill.
-Return builder-ready structured output:
+Use the ad-creative skill by name ("ad-creative"). If unavailable, follow the same principles: strong hook, concrete benefits, social proof, offer clarity, and direct CTA.
+Write copy that is structured and vivid, not a single bland paragraph.
+For each audience variant, primary_text must be multi-line with this structure:
+1) Hook question or bold claim
+2) Core value proposition (1-2 lines)
+3) 2-4 bullet lines with concrete details (counts, subjects, delivery, fit)
+4) Offer/proof line (price drop, trust count, expert backing, or equivalent verified fact)
+5) Clear CTA line
+Use line breaks and optional light emoji markers where natural.
+Language must match copy_context.language and audience context.
+Do not invent claims, numbers, endorsements, or guarantees.
+Return JSON only, builder-ready structured output:
 - copy_context
 - copy_variants with parents, teachers, general (headline + primary_text)
-Do not invent claims.
+Headline quality:
+- clear, specific, punchy
+- avoid generic filler words
+- target about 30-60 chars
+Primary text quality:
+- no walls of text
+- no repeated sentence templates across audiences
+- each audience angle must be meaningfully different
 """
 
 [[skills.config]]
-path = "/Users/edvintoome/.agents/skills/ad-creative/SKILL.md"
+path = "~/.agents/skills/ad-creative/SKILL.md"
 enabled = true
