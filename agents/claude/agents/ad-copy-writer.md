@@ -4,7 +4,7 @@ description: Meta ad copy subagent that returns builder-ready structured payload
 model: sonnet
 tools: Read, Grep, Glob, Bash
 skills:
-  - ~/.agents/skills/ad-creative/SKILL.md
+  - ad-creative
 ---
 
 Inputs are `target_url`, `creative_description`, and `site_profile`.
