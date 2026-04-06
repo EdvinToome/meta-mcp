@@ -2,23 +2,28 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaApiClient } from "../meta-client.js";
 import {
   GetInsightsSchema,
+  GetRoasReportSchema,
   ComparePerformanceSchema,
   ExportInsightsSchema,
 } from "../types/mcp-tools";
-import type { AdInsights } from "../types/meta-api";
+import type { AdInsights, NormalizedInsightsRow } from "../types/meta-api";
+import {
+  ECOMMERCE_INSIGHTS_FIELDS,
+  INSIGHTS_FIELD_PRESETS,
+  type InsightsMetricPreset,
+} from "../utils/insights-normalizer.js";
 
 export function setupAnalyticsTools(
   server: McpServer,
-  metaClient: MetaApiClient
+  metaClient: MetaApiClient,
 ) {
   registerAnalyticsTools(server, metaClient);
 }
 
 export function registerAnalyticsTools(
   server: McpServer,
-  metaClient: MetaApiClient
+  metaClient: MetaApiClient,
 ) {
-  // Get Insights Tool
   server.tool(
     "get_insights",
     GetInsightsSchema.shape,
@@ -28,6 +33,7 @@ export function registerAnalyticsTools(
       date_preset,
       time_range,
       fields,
+      metric_preset,
       breakdowns,
       limit,
       verbose,
@@ -36,6 +42,7 @@ export function registerAnalyticsTools(
         const params: Record<string, any> = {
           level,
           limit: limit || 10,
+          fields: resolveInsightFields(fields, metric_preset),
         };
 
         if (date_preset) {
@@ -43,11 +50,7 @@ export function registerAnalyticsTools(
         } else if (time_range) {
           params.time_range = time_range;
         } else {
-          params.date_preset = "last_7d"; // Default to last 7 days
-        }
-
-        if (fields && fields.length > 0) {
-          params.fields = fields;
+          params.date_preset = "last_7d";
         }
 
         if (breakdowns && breakdowns.length > 0) {
@@ -55,47 +58,11 @@ export function registerAnalyticsTools(
         }
 
         const result = await metaClient.getInsights(object_id, params);
+        const normalizedInsights = metaClient.normalizeInsightsRows(result.data);
+        const summary = calculateSummaryMetrics(normalizedInsights);
 
-        const insights = result.data.map((insight) =>
-          verbose
-            ? {
-                date_start: insight.date_start,
-                date_stop: insight.date_stop,
-                impressions: insight.impressions,
-                clicks: insight.clicks,
-                spend: insight.spend,
-                reach: insight.reach,
-                frequency: insight.frequency,
-                ctr: insight.ctr,
-                cpc: insight.cpc,
-                cpm: insight.cpm,
-                cpp: insight.cpp,
-                actions: insight.actions,
-                cost_per_action_type: insight.cost_per_action_type,
-                video_views: insight.video_views,
-                video_view_time: insight.video_view_time,
-                account_id: insight.account_id,
-                campaign_id: insight.campaign_id,
-                adset_id: insight.adset_id,
-                ad_id: insight.ad_id,
-              }
-            : {
-                date_start: insight.date_start,
-                date_stop: insight.date_stop,
-                impressions: insight.impressions,
-                clicks: insight.clicks,
-                spend: insight.spend,
-                ctr: insight.ctr,
-                cpc: insight.cpc,
-                cpm: insight.cpm,
-              },
-        );
-
-        // Calculate summary statistics
-        const summary = calculateSummaryMetrics(insights);
-
-        const response = {
-          insights,
+        const response: Record<string, unknown> = {
+          insights: normalizedInsights,
           summary,
           pagination: {
             has_next_page: result.hasNextPage,
@@ -109,11 +76,17 @@ export function registerAnalyticsTools(
             date_preset,
             time_range,
             fields,
+            metric_preset,
+            fields_used: params.fields,
             breakdowns,
             verbose: Boolean(verbose),
           },
-          total_count: insights.length,
+          total_count: normalizedInsights.length,
         };
+
+        if (verbose) {
+          response.raw_insights = result.data;
+        }
 
         return {
           content: [
@@ -136,18 +109,26 @@ export function registerAnalyticsTools(
           isError: true,
         };
       }
-    }
+    },
   );
 
-  // Compare Performance Tool
   server.tool(
-    "compare_performance",
-    ComparePerformanceSchema.shape,
-    async ({ object_ids, level, date_preset, time_range, metrics }) => {
+    "get_roas_report",
+    GetRoasReportSchema.shape,
+    async ({
+      object_id,
+      level,
+      date_preset,
+      time_range,
+      breakdowns,
+      attribution_window,
+      limit,
+    }) => {
       try {
         const params: Record<string, any> = {
           level,
-          fields: metrics,
+          limit: limit || 50,
+          fields: [...ECOMMERCE_INSIGHTS_FIELDS],
         };
 
         if (date_preset) {
@@ -158,32 +139,124 @@ export function registerAnalyticsTools(
           params.date_preset = "last_7d";
         }
 
-        // Fetch insights for all objects
-        const comparisons: any[] = [];
+        if (breakdowns && breakdowns.length > 0) {
+          params.breakdowns = breakdowns;
+        }
+
+        if (attribution_window && attribution_window !== "default") {
+          params.action_attribution_windows = [attribution_window];
+        }
+
+        const result = await metaClient.getInsights(object_id, params);
+        const normalizedRows = metaClient.normalizeInsightsRows(result.data);
+        const summary = calculateSummaryMetrics(normalizedRows);
+
+        const response = {
+          object_id,
+          level,
+          attribution_window_used: attribution_window || "default",
+          summary: {
+            spend: summary.total_spend,
+            purchase_value: summary.total_purchase_value,
+            purchases: summary.total_purchases,
+            blended_roas: summary.blended_roas,
+            website_purchase_roas: round2(
+              calculateSpendWeightedAverage(
+                normalizedRows,
+                "website_purchase_roas",
+              ),
+            ),
+            mobile_app_purchase_roas: round2(
+              calculateSpendWeightedAverage(
+                normalizedRows,
+                "mobile_app_purchase_roas",
+              ),
+            ),
+            cost_per_purchase: summary.cost_per_purchase,
+            average_order_value: summary.average_order_value,
+          },
+          normalized_rows: normalizedRows,
+          pagination: {
+            has_next_page: result.hasNextPage,
+            has_previous_page: result.hasPreviousPage,
+            next_cursor: result.paging?.cursors?.after,
+            previous_cursor: result.paging?.cursors?.before,
+          },
+          query_parameters: {
+            object_id,
+            level,
+            date_preset,
+            time_range,
+            breakdowns,
+            attribution_window: attribution_window || "default",
+            fields_used: params.fields,
+          },
+        };
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(response),
+            },
+          ],
+        };
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error occurred";
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error getting ROAS report: ${errorMessage}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  server.tool(
+    "compare_performance",
+    ComparePerformanceSchema.shape,
+    async ({ object_ids, level, date_preset, time_range, metrics }) => {
+      try {
+        const params: Record<string, any> = {
+          level,
+          fields: [...ECOMMERCE_INSIGHTS_FIELDS],
+        };
+
+        if (date_preset) {
+          params.date_preset = date_preset;
+        } else if (time_range) {
+          params.time_range = time_range;
+        } else {
+          params.date_preset = "last_7d";
+        }
+
+        const comparisons: Array<Record<string, unknown>> = [];
 
         for (const objectId of object_ids) {
           try {
             const result = await metaClient.getInsights(objectId, params);
-            const summary = calculateSummaryMetrics(result.data);
+            const normalizedRows = metaClient.normalizeInsightsRows(result.data);
+            const summary = calculateSummaryMetrics(normalizedRows);
 
-            // Get object details (name, etc.)
             let objectName = objectId;
-            const objectType = level;
-
             try {
               if (level === "campaign") {
                 const campaign = await metaClient.getCampaign(objectId);
                 objectName = campaign.name;
               }
-              // Could add similar logic for ad sets and ads
             } catch {
-              // If we can't get the name, use the ID
+              objectName = objectId;
             }
 
             comparisons.push({
               object_id: objectId,
               object_name: objectName,
-              object_type: objectType,
+              object_type: level,
               metrics: summary,
             });
           } catch (error) {
@@ -196,7 +269,6 @@ export function registerAnalyticsTools(
           }
         }
 
-        // Calculate performance rankings
         const rankings = calculatePerformanceRankings(comparisons, metrics);
 
         const response = {
@@ -208,6 +280,7 @@ export function registerAnalyticsTools(
             date_preset,
             time_range,
             metrics,
+            fields_used: params.fields,
           },
           comparison_date: new Date().toISOString(),
         };
@@ -233,10 +306,9 @@ export function registerAnalyticsTools(
           isError: true,
         };
       }
-    }
+    },
   );
 
-  // Export Insights Tool
   server.tool(
     "export_insights",
     ExportInsightsSchema.shape,
@@ -252,7 +324,7 @@ export function registerAnalyticsTools(
       try {
         const params: Record<string, any> = {
           level,
-          limit: 1000, // Get more data for export
+          limit: 1000,
         };
 
         if (date_preset) {
@@ -260,7 +332,7 @@ export function registerAnalyticsTools(
         } else if (time_range) {
           params.time_range = time_range;
         } else {
-          params.date_preset = "last_30d"; // Default to last 30 days for export
+          params.date_preset = "last_30d";
         }
 
         if (fields && fields.length > 0) {
@@ -323,38 +395,27 @@ export function registerAnalyticsTools(
           isError: true,
         };
       }
-    }
+    },
   );
 
-  // Get Campaign Performance Tool (simplified version of get_insights)
   server.tool(
     "get_campaign_performance",
     GetInsightsSchema.shape,
     async (params) => {
       try {
-        // Set level to campaign and add campaign-specific fields
         const campaignParams = {
           ...params,
           level: "campaign" as const,
-          fields: params.fields || [
-            "impressions",
-            "clicks",
-            "spend",
-            "ctr",
-            "cpc",
-            "cpm",
-            "reach",
-            "frequency",
-          ],
+          fields: resolveInsightFields(params.fields, params.metric_preset),
         };
 
         const result = await metaClient.getInsights(
           params.object_id,
-          campaignParams
+          campaignParams,
         );
-        const summary = calculateSummaryMetrics(result.data);
+        const normalizedRows = metaClient.normalizeInsightsRows(result.data);
+        const summary = calculateSummaryMetrics(normalizedRows);
 
-        // Get campaign details
         let campaignDetails;
         try {
           campaignDetails = await metaClient.getCampaign(params.object_id);
@@ -362,7 +423,7 @@ export function registerAnalyticsTools(
           campaignDetails = { id: params.object_id, name: "Unknown Campaign" };
         }
 
-        const response = {
+        const response: Record<string, unknown> = {
           campaign: {
             id: campaignDetails.id,
             name: campaignDetails.name,
@@ -370,9 +431,13 @@ export function registerAnalyticsTools(
             status: campaignDetails.status,
           },
           performance: summary,
-          daily_breakdown: result.data,
+          daily_breakdown: normalizedRows,
           query_parameters: campaignParams,
         };
+
+        if (params.verbose) {
+          response.raw_daily_breakdown = result.data;
+        }
 
         return {
           content: [
@@ -395,39 +460,38 @@ export function registerAnalyticsTools(
           isError: true,
         };
       }
-    }
+    },
   );
 
-  // Get Attribution Data Tool
   server.tool(
     "get_attribution_data",
     GetInsightsSchema.shape,
     async (params) => {
       try {
-        // Add attribution-specific breakdowns and fields
         const attributionParams = {
           ...params,
-          fields: params.fields || [
-            "impressions",
-            "clicks",
-            "spend",
-            "actions",
-            "cost_per_action_type",
-          ],
+          fields:
+            resolveInsightFields(params.fields, params.metric_preset) ||
+            [...ECOMMERCE_INSIGHTS_FIELDS],
           breakdowns: params.breakdowns || ["action_attribution_windows"],
         };
 
         const result = await metaClient.getInsights(
           params.object_id,
-          attributionParams
+          attributionParams,
         );
+        const normalizedRows = metaClient.normalizeInsightsRows(result.data);
 
         const response = {
-          attribution_data: result.data,
-          summary: calculateAttributionMetrics(result.data),
+          attribution_data: normalizedRows,
+          summary: calculateAttributionMetrics(normalizedRows),
           query_parameters: attributionParams,
-          total_records: result.data.length,
+          total_records: normalizedRows.length,
         };
+
+        if (params.verbose) {
+          (response as Record<string, unknown>).raw_attribution_data = result.data;
+        }
 
         return {
           content: [
@@ -450,35 +514,52 @@ export function registerAnalyticsTools(
           isError: true,
         };
       }
-    }
+    },
   );
 }
 
-// Helper Functions
+function resolveInsightFields(
+  fields?: string[],
+  metricPreset?: InsightsMetricPreset,
+): string[] | undefined {
+  if (fields && fields.length > 0) {
+    return fields;
+  }
 
-function calculateSummaryMetrics(insights: AdInsights[]): any {
+  if (metricPreset) {
+    return [...INSIGHTS_FIELD_PRESETS[metricPreset]];
+  }
+
+  return undefined;
+}
+
+function calculateSummaryMetrics(insights: NormalizedInsightsRow[]) {
   if (insights.length === 0) {
     return {
       total_impressions: 0,
       total_clicks: 0,
       total_spend: 0,
+      total_purchase_value: 0,
+      total_purchases: 0,
       average_ctr: 0,
       average_cpc: 0,
       average_cpm: 0,
-      total_reach: 0,
-      average_frequency: 0,
+      blended_roas: 0,
+      cost_per_purchase: 0,
+      average_order_value: 0,
     };
   }
 
   const totals = insights.reduce(
     (acc, insight) => {
-      acc.impressions += parseFloat(insight.impressions || "0");
-      acc.clicks += parseFloat(insight.clicks || "0");
-      acc.spend += parseFloat(insight.spend || "0");
-      acc.reach += parseFloat(insight.reach || "0");
+      acc.impressions += insight.impressions;
+      acc.clicks += insight.clicks;
+      acc.spend += insight.spend;
+      acc.purchase_value += insight.purchase_value;
+      acc.purchases += insight.purchases;
       return acc;
     },
-    { impressions: 0, clicks: 0, spend: 0, reach: 0 }
+    { impressions: 0, clicks: 0, spend: 0, purchase_value: 0, purchases: 0 },
   );
 
   const averageCtr =
@@ -486,18 +567,24 @@ function calculateSummaryMetrics(insights: AdInsights[]): any {
   const averageCpc = totals.clicks > 0 ? totals.spend / totals.clicks : 0;
   const averageCpm =
     totals.impressions > 0 ? (totals.spend / totals.impressions) * 1000 : 0;
-  const averageFrequency =
-    totals.reach > 0 ? totals.impressions / totals.reach : 0;
+  const blendedRoas = totals.spend > 0 ? totals.purchase_value / totals.spend : 0;
+  const costPerPurchase =
+    totals.purchases > 0 ? totals.spend / totals.purchases : 0;
+  const averageOrderValue =
+    totals.purchases > 0 ? totals.purchase_value / totals.purchases : 0;
 
   return {
-    total_impressions: Math.round(totals.impressions),
-    total_clicks: Math.round(totals.clicks),
-    total_spend: Math.round(totals.spend * 100) / 100, // Round to 2 decimal places
-    average_ctr: Math.round(averageCtr * 100) / 100,
-    average_cpc: Math.round(averageCpc * 100) / 100,
-    average_cpm: Math.round(averageCpm * 100) / 100,
-    total_reach: Math.round(totals.reach),
-    average_frequency: Math.round(averageFrequency * 100) / 100,
+    total_impressions: round2(totals.impressions),
+    total_clicks: round2(totals.clicks),
+    total_spend: round2(totals.spend),
+    total_purchase_value: round2(totals.purchase_value),
+    total_purchases: round2(totals.purchases),
+    average_ctr: round2(averageCtr),
+    average_cpc: round2(averageCpc),
+    average_cpm: round2(averageCpm),
+    blended_roas: round2(blendedRoas),
+    cost_per_purchase: round2(costPerPurchase),
+    average_order_value: round2(averageOrderValue),
     date_range: {
       start: insights[0]?.date_start,
       end: insights[insights.length - 1]?.date_stop,
@@ -505,16 +592,34 @@ function calculateSummaryMetrics(insights: AdInsights[]): any {
   };
 }
 
-function calculatePerformanceRankings(
-  comparisons: any[],
-  metrics: string[]
-): any {
-  const rankings: any = {};
+function calculateSpendWeightedAverage(
+  rows: NormalizedInsightsRow[],
+  field: "website_purchase_roas" | "mobile_app_purchase_roas",
+): number {
+  const totals = rows.reduce(
+    (acc, row) => {
+      if (row.spend <= 0 || row[field] <= 0) {
+        return acc;
+      }
+      acc.weighted += row[field] * row.spend;
+      acc.spend += row.spend;
+      return acc;
+    },
+    { weighted: 0, spend: 0 },
+  );
+
+  return totals.spend > 0 ? totals.weighted / totals.spend : 0;
+}
+
+function calculatePerformanceRankings(comparisons: any[], metrics: string[]) {
+  const rankings: Record<string, unknown> = {};
 
   for (const metric of metrics) {
     const validComparisons = comparisons.filter((c) => c.metrics && !c.error);
 
-    if (validComparisons.length === 0) continue;
+    if (validComparisons.length === 0) {
+      continue;
+    }
 
     const sorted = validComparisons
       .map((c) => ({
@@ -524,11 +629,12 @@ function calculatePerformanceRankings(
       }))
       .filter((item) => item.value !== null)
       .sort((a, b) => {
-        // Higher is better for most metrics except cost metrics
         const isCostMetric =
           metric.includes("cpc") ||
           metric.includes("cpm") ||
-          metric.includes("spend");
+          metric.includes("spend") ||
+          metric.includes("cost");
+
         return isCostMetric
           ? (a.value || 0) - (b.value || 0)
           : (b.value || 0) - (a.value || 0);
@@ -545,61 +651,45 @@ function calculatePerformanceRankings(
   return rankings;
 }
 
-function getMetricValue(metrics: any, metricName: string): number | null {
+function getMetricValue(
+  metrics: Record<string, unknown>,
+  metricName: string,
+): number | null {
+  if (metricName === "roas") {
+    const roasValue = metrics.blended_roas;
+    return typeof roasValue === "number" ? roasValue : null;
+  }
+
   const value =
     metrics[`total_${metricName}`] ||
     metrics[`average_${metricName}`] ||
     metrics[metricName];
-  return value !== undefined ? parseFloat(value) : null;
+
+  if (typeof value === "number") {
+    return value;
+  }
+
+  return null;
 }
 
-function calculateAttributionMetrics(insights: AdInsights[]): any {
-  const attributionSummary: any = {
-    total_conversions: 0,
-    attribution_windows: {},
-    cost_per_conversion: 0,
-    conversion_rate: 0,
+function calculateAttributionMetrics(insights: NormalizedInsightsRow[]) {
+  const summary = calculateSummaryMetrics(insights);
+
+  return {
+    total_conversions: summary.total_purchases,
+    total_purchases: summary.total_purchases,
+    total_purchase_value: summary.total_purchase_value,
+    blended_roas: summary.blended_roas,
+    cost_per_purchase: summary.cost_per_purchase,
+    average_order_value: summary.average_order_value,
   };
-
-  insights.forEach((insight) => {
-    if (insight.actions) {
-      insight.actions.forEach((action) => {
-        if (
-          action.action_type === "purchase" ||
-          action.action_type === "complete_registration"
-        ) {
-          attributionSummary.total_conversions += parseFloat(action.value);
-        }
-      });
-    }
-  });
-
-  const totalSpend = insights.reduce(
-    (sum, insight) => sum + parseFloat(insight.spend || "0"),
-    0
-  );
-  const totalClicks = insights.reduce(
-    (sum, insight) => sum + parseFloat(insight.clicks || "0"),
-    0
-  );
-
-  if (attributionSummary.total_conversions > 0) {
-    attributionSummary.cost_per_conversion =
-      totalSpend / attributionSummary.total_conversions;
-  }
-
-  if (totalClicks > 0) {
-    attributionSummary.conversion_rate =
-      (attributionSummary.total_conversions / totalClicks) * 100;
-  }
-
-  return attributionSummary;
 }
 
 function convertToCSV(data: AdInsights[]): string {
-  if (data.length === 0) return "";
+  if (data.length === 0) {
+    return "";
+  }
 
-  // Get all unique keys from the data
   const headers = new Set<string>();
   data.forEach((row) => {
     Object.keys(row).forEach((key) => headers.add(key));
@@ -610,13 +700,22 @@ function convertToCSV(data: AdInsights[]): string {
 
   data.forEach((row) => {
     const values = headerArray.map((header) => {
-      const value = (row as any)[header];
-      if (value === null || value === undefined) return "";
-      if (typeof value === "object") return JSON.stringify(value);
-      return String(value).replace(/"/g, '""'); // Escape quotes
+      const value = (row as Record<string, unknown>)[header];
+      if (value === null || value === undefined) {
+        return "";
+      }
+      if (typeof value === "object") {
+        return JSON.stringify(value);
+      }
+      return String(value).replace(/"/g, '""');
     });
+
     csvRows.push(values.map((v) => `"${v}"`).join(","));
   });
 
   return csvRows.join("\n");
+}
+
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
 }

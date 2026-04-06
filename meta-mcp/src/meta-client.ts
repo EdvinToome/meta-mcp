@@ -13,12 +13,18 @@ import {
   type PaginationParams,
   type PaginatedResult,
 } from "./utils/pagination.js";
+import {
+  ECOMMERCE_INSIGHTS_FIELDS,
+  normalizeInsightsRow,
+  normalizeInsightsRows,
+} from "./utils/insights-normalizer.js";
 import type {
   Campaign,
   AdSet,
   Ad,
   AdCreative,
   AdInsights,
+  NormalizedInsightsRow,
   CustomAudience,
   AdAccount,
   MetaApiResponse,
@@ -537,14 +543,13 @@ export class MetaApiClient {
       time_range?: { since: string; until: string };
       fields?: string[];
       breakdowns?: string[];
+      action_attribution_windows?: string[];
       limit?: number;
       after?: string;
     } = {}
   ): Promise<PaginatedResult<AdInsights>> {
     const queryParams: Record<string, any> = {
-      fields:
-        params.fields?.join(",") ||
-        "impressions,clicks,spend,reach,frequency,ctr,cpc,cpm,actions,cost_per_action_type",
+      fields: params.fields?.join(",") || ECOMMERCE_INSIGHTS_FIELDS.join(","),
       ...params,
     };
 
@@ -558,6 +563,14 @@ export class MetaApiClient {
     );
 
     return PaginationHelper.parsePaginatedResponse(response);
+  }
+
+  normalizeInsightsRow(insight: AdInsights): NormalizedInsightsRow {
+    return normalizeInsightsRow(insight);
+  }
+
+  normalizeInsightsRows(insights: AdInsights[]): NormalizedInsightsRow[] {
+    return normalizeInsightsRows(insights);
   }
 
   // Custom Audience Methods

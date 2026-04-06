@@ -226,6 +226,7 @@ async function main() {
           "run_structured_ad_build",
           // Analytics tools
           "get_insights",
+          "get_roas_report",
           "compare_performance",
           "export_insights",
           "get_campaign_performance",
@@ -358,12 +359,14 @@ async function main() {
                 "2. Use 'list_campaigns' to see all campaigns in an account",
                 "3. Use 'get_insights' with campaign IDs to get performance metrics",
                 "4. Use 'compare_performance' to compare multiple campaigns",
-                "5. Use 'export_insights' to save data in CSV/JSON format",
+                "5. Use 'get_roas_report' for ecommerce and ROAS-specific summaries",
+                "6. Use 'export_insights' to save data in CSV/JSON format",
               ],
               key_tools: [
                 "get_ad_accounts",
                 "list_campaigns",
                 "get_insights",
+                "get_roas_report",
                 "compare_performance",
                 "export_insights",
               ],
@@ -489,7 +492,12 @@ async function main() {
               description: "Ad creative creation, validation, and management",
             },
             performance_analytics: {
-              tools: ["get_insights", "compare_performance", "export_insights"],
+              tools: [
+                "get_insights",
+                "get_roas_report",
+                "compare_performance",
+                "export_insights",
+              ],
               description: "Performance metrics, analysis, and reporting",
             },
             ad_management: {

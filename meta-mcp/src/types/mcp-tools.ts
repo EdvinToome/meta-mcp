@@ -402,6 +402,10 @@ export const GetInsightsSchema = z.object({
     .array(z.string())
     .optional()
     .describe("Specific fields to retrieve (e.g., impressions, clicks, spend)"),
+  metric_preset: z
+    .enum(["delivery", "traffic", "ecommerce", "creative_testing"])
+    .optional()
+    .describe("Vetted field preset for insights metrics"),
   breakdowns: z
     .array(z.string())
     .optional()
@@ -417,6 +421,53 @@ export const GetInsightsSchema = z.object({
     .optional()
     .default(false)
     .describe("Include all raw insight fields in response"),
+});
+
+export const GetRoasReportSchema = z.object({
+  object_id: z
+    .string()
+    .describe("ID of campaign, ad set, or ad to get ROAS report for"),
+  level: z
+    .enum(["account", "campaign", "adset", "ad"])
+    .describe("Level of insights to retrieve"),
+  date_preset: z
+    .enum([
+      "today",
+      "yesterday",
+      "this_week",
+      "last_week",
+      "this_month",
+      "last_month",
+      "this_quarter",
+      "last_quarter",
+      "this_year",
+      "last_year",
+      "lifetime",
+    ])
+    .optional()
+    .describe("Date preset for insights"),
+  time_range: z
+    .object({
+      since: z.string().describe("Start date (YYYY-MM-DD)"),
+      until: z.string().describe("End date (YYYY-MM-DD)"),
+    })
+    .optional()
+    .describe("Custom date range for insights"),
+  breakdowns: z
+    .array(z.string())
+    .optional()
+    .describe("Breakdown dimensions (e.g., age, gender, placement)"),
+  attribution_window: z
+    .enum(["default", "1d_click", "7d_click", "28d_click", "1d_view", "1d_ev"])
+    .optional()
+    .default("default")
+    .describe("Attribution window to use for conversion metrics"),
+  limit: z
+    .number()
+    .min(1)
+    .max(100)
+    .default(50)
+    .describe("Number of insight rows to return"),
 });
 
 export const ComparePerformanceSchema = z.object({
@@ -1199,6 +1250,7 @@ export type ListAdSetsParams = z.infer<typeof ListAdSetsSchema>;
 export type CreateAdSetParams = z.infer<typeof CreateAdSetSchema>;
 export type CreateAdParams = z.infer<typeof CreateAdSchema>;
 export type GetInsightsParams = z.infer<typeof GetInsightsSchema>;
+export type GetRoasReportParams = z.infer<typeof GetRoasReportSchema>;
 export type ComparePerformanceParams = z.infer<typeof ComparePerformanceSchema>;
 export type ExportInsightsParams = z.infer<typeof ExportInsightsSchema>;
 export type ListAudiencesParams = z.infer<typeof ListAudiencesSchema>;

@@ -125,14 +125,48 @@ export interface AdInsights {
   ad_id?: string;
   video_views?: string;
   video_view_time?: string;
-  actions?: Array<{
-    action_type: string;
-    value: string;
-  }>;
-  cost_per_action_type?: Array<{
-    action_type: string;
-    value: string;
-  }>;
+  actions?: AdsActionStat[];
+  cost_per_action_type?: AdsActionStat[];
+  action_values?: AdsActionStat[];
+  purchase_roas?: AdsActionStat[];
+  website_purchase_roas?: AdsActionStat[];
+  mobile_app_purchase_roas?: AdsActionStat[];
+}
+
+export interface AdsActionStat {
+  action_type: string;
+  value: string;
+}
+
+export interface NormalizedInsightsRow {
+  date_start?: string;
+  date_stop?: string;
+  account_id?: string;
+  campaign_id?: string;
+  adset_id?: string;
+  ad_id?: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  reach: number;
+  ctr: number;
+  cpc: number;
+  cpm: number;
+  purchases: number;
+  purchase_value: number;
+  add_to_cart: number;
+  initiate_checkout: number;
+  landing_page_views: number;
+  leads: number;
+  purchase_roas: number;
+  website_purchase_roas: number;
+  mobile_app_purchase_roas: number;
+  cost_per_purchase: number;
+  raw_actions?: AdsActionStat[];
+  raw_action_values?: AdsActionStat[];
+  raw_purchase_roas?: AdsActionStat[];
+  raw_website_purchase_roas?: AdsActionStat[];
+  raw_mobile_app_purchase_roas?: AdsActionStat[];
 }
 
 export interface CustomAudience {

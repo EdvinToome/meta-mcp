@@ -156,7 +156,20 @@ function writeGlobalClaudeConfig(metaAccessToken) {
   fs.writeFileSync(claudeConfigPath, `${JSON.stringify(payload, null, 2)}\n`);
 }
 
+function readEnvValue(source, key) {
+  const prefix = `${key}=`;
+  for (const line of source.split("\n")) {
+    if (line.startsWith(prefix)) {
+      return line.slice(prefix.length).trim().replace(/^"|"$/g, "");
+    }
+  }
+  return "";
+}
+
 function writeProjectMetaEnv(metaAccessToken) {
+  if (!metaAccessToken) {
+    return;
+  }
   ensureDirectory(path.dirname(projectMetaEnvPath));
   const source = fs.existsSync(projectMetaEnvPath)
     ? fs.readFileSync(projectMetaEnvPath, "utf8")
@@ -332,21 +345,27 @@ function getPrompt(rl, query) {
 }
 
 async function main() {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
+  const existingProjectMetaEnv = fs.existsSync(projectMetaEnvPath)
+    ? fs.readFileSync(projectMetaEnvPath, "utf8")
+    : "";
+  const existingProjectToken = readEnvValue(
+    existingProjectMetaEnv,
+    "META_ACCESS_TOKEN",
+  );
 
-  let metaAccessToken = process.env.META_ACCESS_TOKEN || readArg("--meta-token");
-  if (!metaAccessToken) {
-    metaAccessToken = (await getPrompt(rl, "Meta Access Token: ")).trim();
-  }
-  metaAccessToken = normalizeMetaAccessToken(metaAccessToken);
-  rl.close();
+  let metaAccessToken =
+    process.env.META_ACCESS_TOKEN || readArg("--meta-token") || existingProjectToken;
 
-  if (!metaAccessToken) {
-    throw new Error("META_ACCESS_TOKEN is required");
+  if (!metaAccessToken && process.stdin.isTTY) {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    metaAccessToken = (await getPrompt(rl, "Meta Access Token (optional): ")).trim();
+    rl.close();
   }
+
+  metaAccessToken = normalizeMetaAccessToken(metaAccessToken || "");
 
   ensureRepoBuild();
   installClaudeAssets();

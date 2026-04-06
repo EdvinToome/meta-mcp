@@ -20,11 +20,12 @@ usage() {
 Usage: install-claude-desktop.sh [options]
 
 Install/update Meta Marketing Plugin for Claude Code Desktop and bootstrap project files.
+Updates preserve existing project meta config files (meta.env, site-profiles.local.json, brand_dna.yaml).
 
 Options:
   --project <path>       Target project directory (default: current directory)
   --scope <scope>        Plugin scope: user, project, local (default: user)
-  --meta-token <token>   Meta access token for global Claude MCP config
+  --meta-token <token>   Meta access token override (optional on updates)
   --force                Replace existing project symlinks and generated command files
   --dry-run              Print planned actions only
   -h, --help             Show help
@@ -145,15 +146,12 @@ if [[ "$PLUGIN_SCOPE" != "user" && "$PLUGIN_SCOPE" != "project" && "$PLUGIN_SCOP
   die "Unsupported scope: $PLUGIN_SCOPE"
 fi
 
-if [[ "$DRY_RUN" -ne 1 && -z "$META_ACCESS_TOKEN" ]]; then
-  META_ACCESS_TOKEN="$(prompt_secret 'META_ACCESS_TOKEN: ')"
+if [[ -n "$META_ACCESS_TOKEN" ]]; then
+  META_ACCESS_TOKEN="$(
+    printf '%s' "$META_ACCESS_TOKEN" \
+      | sed -E "s/\r//g; s/^[[:space:]]*META_ACCESS_TOKEN[[:space:]]*=[[:space:]]*//; s/^['\"]//; s/['\"]$//"
+  )"
 fi
-META_ACCESS_TOKEN="$(
-  printf '%s' "$META_ACCESS_TOKEN" \
-    | sed -E "s/\r//g; s/^[[:space:]]*META_ACCESS_TOKEN[[:space:]]*=[[:space:]]*//; s/^['\"]//; s/['\"]$//"
-)"
-
-[[ -n "$META_ACCESS_TOKEN" || "$DRY_RUN" -eq 1 ]] || die "META_ACCESS_TOKEN is required"
 
 if [[ -z "$MARKETPLACE_SOURCE" ]]; then
   MARKETPLACE_SOURCE="https://github.com/${REPO_SLUG}"
@@ -206,7 +204,7 @@ if [[ -z "$repo_root" ]]; then
 fi
 
 setup_args=(--project "$PROJECT_DIR")
-if [[ "$DRY_RUN" -eq 0 ]]; then
+if [[ "$DRY_RUN" -eq 0 && -n "$META_ACCESS_TOKEN" ]]; then
   setup_args+=(--meta-token "$META_ACCESS_TOKEN")
 fi
 if [[ "$FORCE" -eq 1 ]]; then
