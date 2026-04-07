@@ -7,6 +7,7 @@ import readline from "readline";
 import { spawnSync } from "child_process";
 import { fileURLToPath } from "url";
 import { ensureDirectory } from "./workspace-config.js";
+import { ensureSplitBrandDnaFiles } from "./brand-dna.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,16 +19,6 @@ const claudeSourcesDir = path.join(repoRoot, "agents", "claude");
 const mcpClaudeDir = path.join(repoRoot, "meta-mcp", "mcp", "claude");
 
 const DEFAULT_SITE_PROFILES = `${JSON.stringify({ profiles: [] }, null, 2)}\n`;
-const DEFAULT_BRAND_DNA = `brand:
-  name: ""
-  category: ""
-voice: []
-audiences: []
-offers: []
-claims:
-  allowed: []
-  forbidden: []
-`;
 
 function readArg(name) {
   const index = args.indexOf(name);
@@ -86,6 +77,8 @@ const PRESERVED_PROJECT_META_FILES = new Set([
   "meta.env",
   "site-profiles.local.json",
   "brand_dna.yaml",
+  "brand_dna_copy.yaml",
+  "brand_dna_visual.yaml",
 ]);
 
 function removePath(targetPath) {
@@ -205,6 +198,9 @@ function ensureGitignoreEntries() {
   const gitignorePath = path.join(projectRoot, ".claude", ".gitignore");
   const entries = [
     "meta-marketing-plugin/site-profiles.local.json",
+    "meta-marketing-plugin/brand_dna_copy.yaml",
+    "meta-marketing-plugin/brand_dna_visual.yaml",
+    "meta-marketing-plugin/brand_dna.yaml",
     "meta-marketing-plugin/.mcp.json",
     "meta-marketing-plugin/meta.env",
     "meta-marketing-plugin/package.json",
@@ -241,14 +237,6 @@ function ensureProjectSiteProfiles() {
   ensureDirectory(path.dirname(siteProfilesPath));
   if (!fs.existsSync(siteProfilesPath)) {
     fs.writeFileSync(siteProfilesPath, DEFAULT_SITE_PROFILES);
-  }
-}
-
-function ensureGlobalBrandDna() {
-  const dnaPath = path.join(claudeMetaRoot, "brand_dna.yaml");
-  ensureDirectory(path.dirname(dnaPath));
-  if (!fs.existsSync(dnaPath)) {
-    fs.writeFileSync(dnaPath, DEFAULT_BRAND_DNA);
   }
 }
 
@@ -291,7 +279,7 @@ function installClaudeAssets() {
   installRuntimeDependencies();
 
   ensureProjectSiteProfiles();
-  ensureGlobalBrandDna();
+  const brandDnaState = ensureSplitBrandDnaFiles(claudeMetaRoot);
 
   removePath(path.join(claudeRoot, "commands"));
   removePath(path.join(claudeMetaRoot, "commands"));
@@ -299,6 +287,7 @@ function installClaudeAssets() {
   removePath(path.join(claudeRoot, "agents"));
 
   copyDirectory(path.join(claudeSourcesDir, "agents"), agentsRoot, true);
+  return brandDnaState;
 }
 
 function ensureRepoBuild() {
@@ -387,7 +376,7 @@ async function main() {
   metaAccessToken = normalizeMetaAccessToken(metaAccessToken || "");
 
   ensureRepoBuild();
-  installClaudeAssets();
+  const brandDnaState = installClaudeAssets();
   upsertManagedBlock(
     claudePath,
     "<!-- meta-marketing-plugin:start -->",
@@ -396,7 +385,8 @@ async function main() {
       "Meta plugin project files:",
       "- `.claude/meta-marketing-plugin/site-profiles.local.json`",
       "- `.claude/meta-marketing-plugin/.mcp.json`",
-      "- `.claude/meta-marketing-plugin/brand_dna.yaml`",
+      "- `.claude/meta-marketing-plugin/brand_dna_copy.yaml`",
+      "- `.claude/meta-marketing-plugin/brand_dna_visual.yaml`",
       "- `.claude/meta-marketing-plugin/agents/ad-copy-writer.md`",
       "- `.claude/skills/meta-ads-builder/SKILL.md`",
     ]
@@ -411,6 +401,20 @@ async function main() {
   console.log(`Skills: ${skillsRoot}`);
   console.log(`Subagent: ${path.join(agentsRoot, "ad-copy-writer.md")}`);
   console.log(`Claude MCP config: ${claudeConfigPath}`);
+  console.log(`Brand DNA copy: ${brandDnaState.copyPath}`);
+  console.log(`Brand DNA visual: ${brandDnaState.visualPath}`);
+  if (brandDnaState.copyCreated) {
+    console.log("Created project brand_dna_copy.yaml");
+  }
+  if (brandDnaState.visualCreated) {
+    console.log("Created project brand_dna_visual.yaml");
+  }
+  if (brandDnaState.migratedCopyFromLegacy) {
+    console.log("Migrated copy fields from legacy brand_dna.yaml");
+  }
+  if (brandDnaState.migratedVisualFromLegacy) {
+    console.log("Migrated non-copy fields from legacy brand_dna.yaml");
+  }
 }
 
 main().catch((error) => {

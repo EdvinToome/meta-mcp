@@ -6,7 +6,7 @@ developer_instructions = """
 Inputs are target_url, creative_description, and site_profile.
 Read only:
 1) this ad_copy_writer instructions file
-2) ~/.meta-marketing-plugin/brand_dna.yaml
+2) ~/.meta-marketing-plugin/brand_dna_copy.yaml
 Do not read site-profiles.local.json.
 Use provided site_profile object directly.
 Call MCP tool extract_target_page_facts with target_url.

@@ -6,6 +6,7 @@ import path from "path";
 import readline from "readline";
 import { spawnSync } from "child_process";
 import { fileURLToPath } from "url";
+import { ensureSplitBrandDnaFiles } from "./brand-dna.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,11 +35,13 @@ const marketplacePath = path.join(
 const metaRoot = path.join(os.homedir(), ".meta-marketing-plugin");
 const metaEnvPath = path.join(metaRoot, "meta.env");
 const siteProfilesPath = path.join(metaRoot, "site-profiles.local.json");
-const brandDnaPath = path.join(metaRoot, "brand_dna.yaml");
+const legacyBrandDnaPath = path.join(metaRoot, "brand_dna.yaml");
 const PRESERVED_GLOBAL_META_FILES = new Set([
   "meta.env",
   "site-profiles.local.json",
   "brand_dna.yaml",
+  "brand_dna_copy.yaml",
+  "brand_dna_visual.yaml",
 ]);
 
 const codexAgentsRoot = path.join(os.homedir(), ".codex", "agents");
@@ -48,16 +51,6 @@ const codexSourcesDir = path.join(repoRoot, "agents", "codex");
 const mcpCodexDir = path.join(repoRoot, "meta-mcp", "mcp", "codex");
 
 const DEFAULT_SITE_PROFILES = `${JSON.stringify({ profiles: [] }, null, 2)}\n`;
-const DEFAULT_BRAND_DNA = `brand:
-  name: ""
-  category: ""
-voice: []
-audiences: []
-offers: []
-claims:
-  allowed: []
-  forbidden: []
-`;
 
 function ensureDirectory(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
@@ -202,9 +195,9 @@ function ensureMetaConfig() {
     siteProfilesPath,
     DEFAULT_SITE_PROFILES
   );
-  const brandDnaCreated = createFileIfMissing(brandDnaPath, DEFAULT_BRAND_DNA);
+  const brandDnaState = ensureSplitBrandDnaFiles(metaRoot);
 
-  return { existingMetaEnv, siteProfilesCreated, brandDnaCreated };
+  return { existingMetaEnv, siteProfilesCreated, brandDnaState };
 }
 
 function writeCodexAdCopySubagent() {
@@ -399,12 +392,26 @@ async function main() {
   console.log(`Marketplace: ${marketplacePath}`);
   console.log(`Subagent: ${codexAdCopyAgentPath}`);
   console.log(`Profiles: ${siteProfilesPath}`);
-  console.log(`Brand DNA: ${brandDnaPath}`);
+  console.log(`Brand DNA copy: ${created.brandDnaState.copyPath}`);
+  console.log(`Brand DNA visual: ${created.brandDnaState.visualPath}`);
   if (created.siteProfilesCreated) {
     console.log("Created global site-profiles.local.json");
   }
-  if (created.brandDnaCreated) {
-    console.log("Created global brand_dna.yaml");
+  if (created.brandDnaState.copyCreated) {
+    console.log("Created global brand_dna_copy.yaml");
+  }
+  if (created.brandDnaState.visualCreated) {
+    console.log("Created global brand_dna_visual.yaml");
+  }
+  if (created.brandDnaState.migratedCopyFromLegacy) {
+    console.log(
+      `Migrated copy fields from legacy ${legacyBrandDnaPath} to brand_dna_copy.yaml`
+    );
+  }
+  if (created.brandDnaState.migratedVisualFromLegacy) {
+    console.log(
+      `Migrated non-copy fields from legacy ${legacyBrandDnaPath} to brand_dna_visual.yaml`
+    );
   }
   if (wroteMetaEnv) {
     console.log("Created meta.env");

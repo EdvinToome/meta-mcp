@@ -28,7 +28,8 @@ Creates/updates:
 - `~/.codex/plugins/meta-marketing-plugin`
 - `~/.codex/agents/ad-copy-writer.toml`
 - `~/.meta-marketing-plugin/site-profiles.local.json`
-- `~/.meta-marketing-plugin/brand_dna.yaml`
+- `~/.meta-marketing-plugin/brand_dna_copy.yaml`
+- `~/.meta-marketing-plugin/brand_dna_visual.yaml`
 - `~/.meta-marketing-plugin/meta.env`
 
 ### Claude Code Desktop
@@ -41,10 +42,11 @@ Creates/updates:
 - `.claude/meta-marketing-plugin/.mcp.json`
 - `.claude/meta-marketing-plugin/scripts/launch-meta-server.js`
 - `.claude/meta-marketing-plugin/site-profiles.local.json`
+- `.claude/meta-marketing-plugin/brand_dna_copy.yaml`
+- `.claude/meta-marketing-plugin/brand_dna_visual.yaml`
 - `.claude/agents/ad-copy-writer.md`
 - `.claude/commands/meta-ads-builder.md`
 - `.claude/commands/meta-ads-morning-review.md`
-- `~/.meta-marketing-plugin/brand_dna.yaml`
 
 ## Claude Commands
 

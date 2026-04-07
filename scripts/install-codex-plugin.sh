@@ -14,7 +14,9 @@ Installs or updates the Meta Marketing Codex plugin bundle and performs a full p
 During refresh, only these global config files are preserved:
   - ~/.meta-marketing-plugin/meta.env
   - ~/.meta-marketing-plugin/site-profiles.local.json
-  - ~/.meta-marketing-plugin/brand_dna.yaml
+  - ~/.meta-marketing-plugin/brand_dna_copy.yaml
+  - ~/.meta-marketing-plugin/brand_dna_visual.yaml
+  - ~/.meta-marketing-plugin/brand_dna.yaml (legacy, auto-migrated)
 
 Options:
   -h, --help       Show this help

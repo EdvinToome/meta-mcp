@@ -2,6 +2,7 @@
 
 import fs from "fs";
 import path from "path";
+import { ensureSplitBrandDnaFiles } from "./brand-dna.js";
 
 const args = process.argv.slice(2);
 
@@ -12,20 +13,8 @@ function readArg(name) {
 
 const targetRoot = path.resolve(readArg("--root") || process.cwd());
 const siteProfilesPath = path.join(targetRoot, "site-profiles.local.json");
-const brandDnaPath = path.join(targetRoot, "brand_dna.yaml");
 
 const defaultProfiles = `${JSON.stringify({ profiles: [] }, null, 2)}\n`;
-const defaultBrandDna = `brand:
-  name: ""
-  category: ""
-voice: []
-audiences: []
-offers: []
-claims:
-  allowed: []
-  forbidden: []
-`;
-
 function writeIfMissing(filePath, content) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   if (fs.existsSync(filePath)) {
@@ -37,7 +26,7 @@ function writeIfMissing(filePath, content) {
 
 function main() {
   const createdProfiles = writeIfMissing(siteProfilesPath, defaultProfiles);
-  const createdBrandDna = writeIfMissing(brandDnaPath, defaultBrandDna);
+  const brandDnaState = ensureSplitBrandDnaFiles(targetRoot);
 
   console.log(
     createdProfiles
@@ -45,10 +34,21 @@ function main() {
       : `ℹ️  Kept existing ${siteProfilesPath}`
   );
   console.log(
-    createdBrandDna
-      ? `✅ Created ${brandDnaPath}`
-      : `ℹ️  Kept existing ${brandDnaPath}`
+    brandDnaState.copyCreated
+      ? `✅ Created ${brandDnaState.copyPath}`
+      : `ℹ️  Kept existing ${brandDnaState.copyPath}`
   );
+  console.log(
+    brandDnaState.visualCreated
+      ? `✅ Created ${brandDnaState.visualPath}`
+      : `ℹ️  Kept existing ${brandDnaState.visualPath}`
+  );
+  if (brandDnaState.migratedCopyFromLegacy) {
+    console.log("🔄 Migrated copy fields from brand_dna.yaml");
+  }
+  if (brandDnaState.migratedVisualFromLegacy) {
+    console.log("🔄 Migrated non-copy fields from brand_dna.yaml");
+  }
 }
 
 main();

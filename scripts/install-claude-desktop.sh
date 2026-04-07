@@ -20,7 +20,7 @@ usage() {
 Usage: install-claude-desktop.sh [options]
 
 Install/update Meta Marketing Plugin for Claude Code Desktop and bootstrap project files.
-Updates preserve existing project meta config files (meta.env, site-profiles.local.json, brand_dna.yaml).
+Updates preserve existing project meta config files (meta.env, site-profiles.local.json, brand_dna_copy.yaml, brand_dna_visual.yaml, and legacy brand_dna.yaml for auto-migration).
 
 Options:
   --project <path>       Target project directory (default: current directory)

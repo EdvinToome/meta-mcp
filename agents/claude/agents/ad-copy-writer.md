@@ -15,7 +15,7 @@ Inputs are `target_url`, `creative_description`, and `site_profile`.
 
 Read:
 - this `ad-copy-writer.md` file
-- `.claude/meta-marketing-plugin/brand_dna.yaml`
+- `.claude/meta-marketing-plugin/brand_dna_copy.yaml`
 
 Do not read site-profiles.local.json.
 Use provided `site_profile` object directly.

@@ -8,7 +8,7 @@ Use this for issue diagnosis and performance debugging in Claude.
 Read:
 - `.claude/meta-marketing-plugin/site-profiles.local.json`
 
-Load `.claude/meta-marketing-plugin/brand_dna.yaml` only when the user asks for brand-voice copy or claim policy guidance.
+Load `.claude/meta-marketing-plugin/brand_dna_copy.yaml` only when the user asks for brand-voice copy or claim policy guidance.
 
 Workflow:
 1. Resolve account from `site_profile`.
