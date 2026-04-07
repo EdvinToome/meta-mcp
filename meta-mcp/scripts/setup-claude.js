@@ -7,7 +7,10 @@ import readline from "readline";
 import { spawnSync } from "child_process";
 import { fileURLToPath } from "url";
 import { ensureDirectory } from "./workspace-config.js";
-import { ensureSplitBrandDnaFiles } from "./brand-dna.js";
+import {
+  ensureBrandDnaFiles,
+  migrateLegacyBrandDnaIfPresent,
+} from "./brand-dna.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -279,7 +282,8 @@ function installClaudeAssets() {
   installRuntimeDependencies();
 
   ensureProjectSiteProfiles();
-  const brandDnaState = ensureSplitBrandDnaFiles(claudeMetaRoot);
+  const brandDnaMigrationState = migrateLegacyBrandDnaIfPresent(claudeMetaRoot);
+  const brandDnaFilesState = ensureBrandDnaFiles(claudeMetaRoot);
 
   removePath(path.join(claudeRoot, "commands"));
   removePath(path.join(claudeMetaRoot, "commands"));
@@ -287,7 +291,7 @@ function installClaudeAssets() {
   removePath(path.join(claudeRoot, "agents"));
 
   copyDirectory(path.join(claudeSourcesDir, "agents"), agentsRoot, true);
-  return brandDnaState;
+  return { brandDnaFilesState, brandDnaMigrationState };
 }
 
 function ensureRepoBuild() {
@@ -401,19 +405,22 @@ async function main() {
   console.log(`Skills: ${skillsRoot}`);
   console.log(`Subagent: ${path.join(agentsRoot, "ad-copy-writer.md")}`);
   console.log(`Claude MCP config: ${claudeConfigPath}`);
-  console.log(`Brand DNA copy: ${brandDnaState.copyPath}`);
-  console.log(`Brand DNA visual: ${brandDnaState.visualPath}`);
-  if (brandDnaState.copyCreated) {
+  console.log(`Brand DNA copy: ${brandDnaState.brandDnaFilesState.copyPath}`);
+  console.log(`Brand DNA visual: ${brandDnaState.brandDnaFilesState.visualPath}`);
+  if (brandDnaState.brandDnaFilesState.copyCreated) {
     console.log("Created project brand_dna_copy.yaml");
   }
-  if (brandDnaState.visualCreated) {
+  if (brandDnaState.brandDnaFilesState.visualCreated) {
     console.log("Created project brand_dna_visual.yaml");
   }
-  if (brandDnaState.migratedCopyFromLegacy) {
+  if (brandDnaState.brandDnaMigrationState.migratedCopyFromLegacy) {
     console.log("Migrated copy fields from legacy brand_dna.yaml");
   }
-  if (brandDnaState.migratedVisualFromLegacy) {
+  if (brandDnaState.brandDnaMigrationState.migratedVisualFromLegacy) {
     console.log("Migrated non-copy fields from legacy brand_dna.yaml");
+  }
+  if (brandDnaState.brandDnaMigrationState.deletedLegacy) {
+    console.log("Deleted legacy brand_dna.yaml");
   }
 }
 

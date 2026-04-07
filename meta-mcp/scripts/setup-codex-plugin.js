@@ -6,7 +6,10 @@ import path from "path";
 import readline from "readline";
 import { spawnSync } from "child_process";
 import { fileURLToPath } from "url";
-import { ensureSplitBrandDnaFiles } from "./brand-dna.js";
+import {
+  ensureBrandDnaFiles,
+  migrateLegacyBrandDnaIfPresent,
+} from "./brand-dna.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -195,9 +198,15 @@ function ensureMetaConfig() {
     siteProfilesPath,
     DEFAULT_SITE_PROFILES
   );
-  const brandDnaState = ensureSplitBrandDnaFiles(metaRoot);
+  const brandDnaMigrationState = migrateLegacyBrandDnaIfPresent(metaRoot);
+  const brandDnaFilesState = ensureBrandDnaFiles(metaRoot);
 
-  return { existingMetaEnv, siteProfilesCreated, brandDnaState };
+  return {
+    existingMetaEnv,
+    siteProfilesCreated,
+    brandDnaFilesState,
+    brandDnaMigrationState,
+  };
 }
 
 function writeCodexAdCopySubagent() {
@@ -392,26 +401,29 @@ async function main() {
   console.log(`Marketplace: ${marketplacePath}`);
   console.log(`Subagent: ${codexAdCopyAgentPath}`);
   console.log(`Profiles: ${siteProfilesPath}`);
-  console.log(`Brand DNA copy: ${created.brandDnaState.copyPath}`);
-  console.log(`Brand DNA visual: ${created.brandDnaState.visualPath}`);
+  console.log(`Brand DNA copy: ${created.brandDnaFilesState.copyPath}`);
+  console.log(`Brand DNA visual: ${created.brandDnaFilesState.visualPath}`);
   if (created.siteProfilesCreated) {
     console.log("Created global site-profiles.local.json");
   }
-  if (created.brandDnaState.copyCreated) {
+  if (created.brandDnaFilesState.copyCreated) {
     console.log("Created global brand_dna_copy.yaml");
   }
-  if (created.brandDnaState.visualCreated) {
+  if (created.brandDnaFilesState.visualCreated) {
     console.log("Created global brand_dna_visual.yaml");
   }
-  if (created.brandDnaState.migratedCopyFromLegacy) {
+  if (created.brandDnaMigrationState.migratedCopyFromLegacy) {
     console.log(
       `Migrated copy fields from legacy ${legacyBrandDnaPath} to brand_dna_copy.yaml`
     );
   }
-  if (created.brandDnaState.migratedVisualFromLegacy) {
+  if (created.brandDnaMigrationState.migratedVisualFromLegacy) {
     console.log(
       `Migrated non-copy fields from legacy ${legacyBrandDnaPath} to brand_dna_visual.yaml`
     );
+  }
+  if (created.brandDnaMigrationState.deletedLegacy) {
+    console.log(`Deleted legacy ${legacyBrandDnaPath}`);
   }
   if (wroteMetaEnv) {
     console.log("Created meta.env");

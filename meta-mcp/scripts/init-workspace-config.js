@@ -2,7 +2,10 @@
 
 import fs from "fs";
 import path from "path";
-import { ensureSplitBrandDnaFiles } from "./brand-dna.js";
+import {
+  ensureBrandDnaFiles,
+  migrateLegacyBrandDnaIfPresent,
+} from "./brand-dna.js";
 
 const args = process.argv.slice(2);
 
@@ -26,7 +29,8 @@ function writeIfMissing(filePath, content) {
 
 function main() {
   const createdProfiles = writeIfMissing(siteProfilesPath, defaultProfiles);
-  const brandDnaState = ensureSplitBrandDnaFiles(targetRoot);
+  const brandDnaMigrationState = migrateLegacyBrandDnaIfPresent(targetRoot);
+  const brandDnaFilesState = ensureBrandDnaFiles(targetRoot);
 
   console.log(
     createdProfiles
@@ -34,20 +38,23 @@ function main() {
       : `ℹ️  Kept existing ${siteProfilesPath}`
   );
   console.log(
-    brandDnaState.copyCreated
-      ? `✅ Created ${brandDnaState.copyPath}`
-      : `ℹ️  Kept existing ${brandDnaState.copyPath}`
+    brandDnaFilesState.copyCreated
+      ? `✅ Created ${brandDnaFilesState.copyPath}`
+      : `ℹ️  Kept existing ${brandDnaFilesState.copyPath}`
   );
   console.log(
-    brandDnaState.visualCreated
-      ? `✅ Created ${brandDnaState.visualPath}`
-      : `ℹ️  Kept existing ${brandDnaState.visualPath}`
+    brandDnaFilesState.visualCreated
+      ? `✅ Created ${brandDnaFilesState.visualPath}`
+      : `ℹ️  Kept existing ${brandDnaFilesState.visualPath}`
   );
-  if (brandDnaState.migratedCopyFromLegacy) {
+  if (brandDnaMigrationState.migratedCopyFromLegacy) {
     console.log("🔄 Migrated copy fields from brand_dna.yaml");
   }
-  if (brandDnaState.migratedVisualFromLegacy) {
+  if (brandDnaMigrationState.migratedVisualFromLegacy) {
     console.log("🔄 Migrated non-copy fields from brand_dna.yaml");
+  }
+  if (brandDnaMigrationState.deletedLegacy) {
+    console.log("🗑️ Deleted legacy brand_dna.yaml");
   }
 }
 
