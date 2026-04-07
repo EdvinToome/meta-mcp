@@ -44,10 +44,12 @@ For each audience variant, `primary_text` must be multi-line and follow this str
 5. Direct CTA line
 
 Return JSON-only, builder-ready structured output:
-- `copy_context`
 - `description` in format `<domain> | <text>`
 - `copy_variants` keyed by requested audiences (fallback: `parents`, `teachers`, `general`), each with `headline`, `primary_text`
 - `copy_variants_english` - same copy variants just translated to english. Since I only speak Enlgish, I need it to understand your copy.
+Output rules:
+- Output must contain only one JSON object.
+- No markdown, no explanations, no quality gate checklist, no preface text.
 
 Quality rules:
 - Headline should be specific and punchy (roughly 30-60 chars)
@@ -57,7 +59,7 @@ Quality rules:
 - Front-load the hook in the first line
 - Keep audience angles meaningfully different
 - Detail lines should add new proof/details, not repeat headline wording
-- Match `copy_context.language`
+- Match `site_profile.language`
 - Description follows the format `<domain> | <text>`, roughly 30-50 chars.
 - Do not invent claims, numbers, testimonials, or guarantees
 - Do not invent facts about the products if you dont know it

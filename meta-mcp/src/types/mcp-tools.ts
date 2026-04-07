@@ -935,27 +935,14 @@ export const StructuredAdBuildItemSchema = z.object({
     .optional()
     .describe("Existing Meta image hash to reuse instead of uploading"),
   image_name: z.string().optional().describe("Optional image library name"),
-  copy_context: z
-    .object({
-      brand_name: z.string().min(1).describe("Public-facing store or brand name"),
-      language: z.string().min(1).describe("Language to write the copy in"),
-      country: z.string().min(1).describe("Country for localization context"),
-      product_name: z.string().min(1).describe("Product or article name"),
-      page_type: z
-        .enum(["product", "advertorial"])
-        .optional()
-        .default("product")
-        .describe("Whether the destination page is a product page or advertorial"),
-      product_facts: z
-        .array(z.string().min(1))
-        .min(1)
-        .describe("Verified product or page facts pulled from the destination URL"),
-      creative_description: z
-        .string()
-        .min(1)
-        .describe("Short description of what the selected creative shows or says"),
-    })
-    .describe("Compact copy brief used to plan the structured ad copy before the build runs"),
+  language: z
+    .string()
+    .min(1)
+    .describe("Language code for localization, for example et, lt, lv, pt, en"),
+  country: z
+    .string()
+    .min(2)
+    .describe("Country code for localization, for example EE, LT, LV, PT"),
   copy_variants: z
     .object({
       description: z
@@ -1283,8 +1270,6 @@ export type ListCreativesParams = z.infer<typeof ListCreativesSchema>;
 export type CreateAdCreativeParams = z.infer<typeof CreateAdCreativeSchema>;
 export type StructuredAdBuildItemParams = z.infer<typeof StructuredAdBuildItemSchema>;
 export type RunStructuredAdBuildParams = z.infer<typeof RunStructuredAdBuildSchema>;
-export type StructuredAdCopyContextParams =
-  StructuredAdBuildItemParams["copy_context"];
 export type PreviewAdParams = z.infer<typeof PreviewAdSchema>;
 export type GenerateAuthUrlParams = z.infer<typeof GenerateAuthUrlSchema>;
 export type ExchangeCodeParams = z.infer<typeof ExchangeCodeSchema>;

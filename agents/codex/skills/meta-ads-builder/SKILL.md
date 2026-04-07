@@ -11,13 +11,17 @@ Read:
 Workflow:
 1. Resolve `site_profile` from global profiles.
 2. Resolve image, `target_url`, budget, status, CTA.
-3. Delegate copy generation to subagent `ad_copy_writer` with:
+3. Build campaign, ad set and ad names with this required format:
+   - `Brand | Country | Date | Description`
+   - Date format: `YYYY-MM-DD`
+   - Description is free-form and concise 2-4 words.
+   - Use different description focus by level.
+4. Delegate copy generation to subagent `ad_copy_writer` with:
    - `target_url`
    - `creative_description`
    - resolved `site_profile` object (not profile id)
    - quality gates and other return response requirements:
   Require structured return, by default 3 variants, one for tailored to each audience, provide the agent with:
-   - `copy_context`
    - `description` (`<domain> | <text>`)
    - `copy_variants` (`parents`, `teachers`, `general`)
    - `copy_variants_english`  - same copy variants just translated to english. Since I only speak Enlgish, I need it to understand your copy.
@@ -28,8 +32,10 @@ Workflow:
      - uses emoji
      - audience variants are materially different, not paraphrases
    - if the gate fails, request a rewrite from `ad_copy_writer` before proceeding
-4. Execute `mcp__meta_marketing_plugin__run_structured_ad_build`.
-5. Return created IDs, links to ads, ad copies, and ad copies in English and next operator actions. 
+5. Execute `mcp__meta_marketing_plugin__run_structured_ad_build` and pass:
+   - `language` from `site_profile.language`
+   - `country` from `site_profile.country`
+6. Return created IDs, links to ads, ad copies, and ad copies in English and next operator actions. 
 
 Rules:
 - Use Meta MCP tools only.

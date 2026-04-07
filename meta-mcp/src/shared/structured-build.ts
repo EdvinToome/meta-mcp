@@ -55,8 +55,8 @@ function buildDefaultStartTime() {
 
 function buildDeterministicDescription(build: StructuredAdBuildItemParams) {
   const domain = new URL(build.destination_url).hostname.replace(/^www\./, "");
-  const languageCode = build.copy_context.language.toLowerCase().slice(0, 2);
-  const countryCode = build.countries[0]?.toUpperCase() || "";
+  const languageCode = build.language.trim().toLowerCase();
+  const countryCode = build.country.trim().toUpperCase();
   const phrase =
     DESCRIPTION_PHRASES_BY_LANGUAGE[languageCode] ||
     DESCRIPTION_PHRASES[countryCode] ||
@@ -234,7 +234,6 @@ async function runSingleBuild(
       description: descriptionText,
       start_time: startTime,
     },
-    copy_context: build.copy_context,
     copy_variants: {
       parents: copyVariants.parents,
       teachers: copyVariants.teachers,
