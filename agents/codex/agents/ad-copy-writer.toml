@@ -33,7 +33,7 @@ Language must match copy_context.language and audience context.
 Do not invent claims, numbers, endorsements, or guarantees.
 Return JSON only, builder-ready structured output:
 - copy_context
-- description in format "<brand_name_or_domain> | <text>"
+- description in format "<domain> | <text>"
 - copy_variants keyed by requested audiences (fallback: parents, teachers, general), each with headline + primary_text
 Headline quality:
 - clear, specific, punchy

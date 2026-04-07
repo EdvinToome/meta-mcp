@@ -19,7 +19,7 @@ Workflow:
    - quality gates and other return response requirements:
   Require structured return, by default 3 variants, one for tailored to each audience:
    - `copy_context`
-   - `description` (`<brand_name_or_domain> | <text>`)
+   - `description` (`<domain> | <text>`)
    - `copy_variants` (`parents`, `teachers`, `general`)
    - `copy_variants_english` - same copy variants just translated to english. Since I only speak Enlgish, I need it to understand the copy.
    Quality gate before build:
