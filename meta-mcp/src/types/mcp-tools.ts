@@ -958,6 +958,11 @@ export const StructuredAdBuildItemSchema = z.object({
     .describe("Compact copy brief used to plan the structured ad copy before the build runs"),
   copy_variants: z
     .object({
+      description: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("Ad description in '<brand_or_domain> | <text>' format"),
       parents: z.object({
         headline: z.string().min(1).describe("Audience-specific headline for the parents angle"),
         primary_text: z

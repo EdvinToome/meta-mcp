@@ -18,6 +18,14 @@ const DESCRIPTION_PHRASES: Record<string, string> = {
   LT: "Geriausia mokymosi medžiaga vaikams",
 };
 
+const DESCRIPTION_PHRASES_BY_LANGUAGE: Record<string, string> = {
+  et: "Parimad õppematerjalid lastele",
+  lt: "Geriausia mokymosi medžiaga vaikams",
+  lv: "Labakie macibu materiali berniem",
+  pt: "Os melhores materiais de estudo para criancas",
+  en: "Best study materials for children",
+};
+
 const jsonToolResult = (payload: unknown, isError = false): MetaToolResult => ({
   content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
   ...(isError ? { isError: true as const } : {}),
@@ -47,11 +55,22 @@ function buildDefaultStartTime() {
 
 function buildDeterministicDescription(build: StructuredAdBuildItemParams) {
   const domain = new URL(build.destination_url).hostname.replace(/^www\./, "");
-  const countryCode = build.countries[0];
+  const languageCode = build.copy_context.language.toLowerCase().slice(0, 2);
+  const countryCode = build.countries[0]?.toUpperCase() || "";
   const phrase =
-    DESCRIPTION_PHRASES[countryCode] || "Best study materials for children";
+    DESCRIPTION_PHRASES_BY_LANGUAGE[languageCode] ||
+    DESCRIPTION_PHRASES[countryCode] ||
+    "Best study materials for children";
 
   return `${domain} | ${phrase}`;
+}
+
+function buildDescriptionText(build: StructuredAdBuildItemParams) {
+  const provided = build.copy_variants.description?.trim();
+  if (provided) {
+    return provided;
+  }
+  return buildDeterministicDescription(build);
 }
 
 function parseStepPayload(step: string, result: MetaToolResult) {
@@ -90,7 +109,7 @@ async function runSingleBuild(
 
   const status = build.status || "PAUSED";
   const budgetMinor = Math.round(build.daily_budget_major * 100);
-  const descriptionText = buildDeterministicDescription(build);
+  const descriptionText = buildDescriptionText(build);
   const startTime = build.start_time || buildDefaultStartTime();
   const copyVariants = build.copy_variants;
   let imageHash = build.image_hash;
