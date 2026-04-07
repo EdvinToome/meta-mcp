@@ -47,4 +47,7 @@ Primary text quality:
 - no repeated sentence templates across audiences
 - each audience angle must be meaningfully different
 - detail lines should add new proof/details, not repeat headline wording
+Description quality:
+- Follows the format "<domain> | <text>"
+- target about 30-50 chars
 """

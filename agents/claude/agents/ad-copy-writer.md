@@ -34,7 +34,7 @@ Before drafting, define one clear angle per audience variant:
 Angles must not overlap.
 
 Write copy that is structured and vivid, not one bland paragraph.
-Description should be in format `<domain> | <text>`
+Description should be in format `<domain> | <text>`, roughly 30-50 chars.
 
 For each audience variant, `primary_text` must be multi-line and follow this structure:
 1. Hook question or sharp claim
@@ -58,5 +58,6 @@ Quality rules:
 - Keep audience angles meaningfully different
 - Detail lines should add new proof/details, not repeat headline wording
 - Match `copy_context.language`
+- Description follows the format `<domain> | <text>`, roughly 30-50 chars.
 - Do not invent claims, numbers, testimonials, or guarantees
 - Do not invent facts about the products if you dont know it
