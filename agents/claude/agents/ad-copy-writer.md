@@ -46,7 +46,6 @@ For each audience variant, `primary_text` must be multi-line and follow this str
 Return JSON-only, builder-ready structured output:
 - `description` in format `<domain> | <text>`
 - `copy_variants` keyed by requested audiences (fallback: `parents`, `teachers`, `general`), each with `headline`, `primary_text`
-- `copy_variants_english` - same copy variants just translated to english. Since I only speak Enlgish, I need it to understand your copy.
 Output rules:
 - Output must contain only one JSON object.
 - No markdown, no explanations, no quality gate checklist, no preface text.

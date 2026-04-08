@@ -37,7 +37,6 @@ Workflow:
    - required output per call:
      - `description` (`<domain> | <text>`)
      - `copy_variants` (`parents`, `teachers`, `general`)
-     - `copy_variants_english` - same copy variants translated to English for operator readability
    - quality gate per call before build:
      - each `primary_text` is multi-line (at least 4 line breaks)
      - includes concrete detail lines (numbers or specific curriculum/content facts)
@@ -54,7 +53,10 @@ Workflow:
 6. Execute `mcp__meta_marketing_plugin__run_structured_ad_build` only after image is resolved and pass:
    - `language` from `site_profile.language`
    - `country` from `site_profile.country`
-7. Return created IDs, links to ads, ad copies, and ad copies in English and next operator actions.
+7. Return created IDs, links to ads, and for each audience variant include:
+   - original `headline` and `primary_text`
+   - English translation of `headline` and `primary_text`
+   - next operator actions
 
 Rules:
 - Use Meta MCP tools only.
