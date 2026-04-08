@@ -10,7 +10,14 @@ Read:
 
 Workflow:
 1. Resolve `site_profile` from global profiles.
-2. Resolve image, `target_url`, budget, status, CTA.
+2. Resolve image strategy, `target_url`, budget, status, CTA.
+   - If `image_path` or `image_hash` is provided, continue directly to publish.
+   - If image is missing, run generation first through Gemini MCP tools:
+     - `create_creative_generation_batch`
+     - `review_creative_batch`
+     - `approve_creative_candidate`
+     - `provide_final_overlay_asset` (only for visual-only approvals)
+   - Do not call publish flow before explicit candidate approval.
 3. Build campaign, ad set and ad names with this required format:
    - `Brand | Country | Date | Description`
    - Date format: `YYYY-MM-DD`
@@ -32,7 +39,7 @@ Workflow:
      - uses emoji
      - audience variants are materially different, not paraphrases
    - if the gate fails, request a rewrite from `ad_copy_writer` before proceeding
-5. Execute `mcp__meta_marketing_plugin__run_structured_ad_build` and pass:
+5. Execute `mcp__meta_marketing_plugin__run_structured_ad_build` only after image is resolved and pass:
    - `language` from `site_profile.language`
    - `country` from `site_profile.country`
 6. Return created IDs, links to ads, ad copies, and ad copies in English and next operator actions. 

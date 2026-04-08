@@ -4,6 +4,11 @@
       "command": "node",
       "args": ["./.claude/meta-marketing-plugin/scripts/launch-meta-server.js"],
       "cwd": "."
+    },
+    "gemini-creative-plugin": {
+      "command": "node",
+      "args": ["./.claude/meta-marketing-plugin/scripts/launch-gemini-server.js"],
+      "cwd": "."
     }
   }
 }

@@ -155,14 +155,25 @@ function writeGlobalClaudeConfig(metaAccessToken) {
     ? JSON.parse(fs.readFileSync(claudeConfigPath, "utf8"))
     : {};
   const existingServer = payload.mcpServers?.["meta-marketing-plugin"] || {};
+  const existingGeminiServer =
+    payload.mcpServers?.["gemini-creative-plugin"] || {};
   const existingEnv = { ...(existingServer.env || {}) };
+  const existingGeminiEnv = { ...(existingGeminiServer.env || {}) };
   delete existingEnv.META_ACCESS_TOKEN;
+  delete existingGeminiEnv.META_ACCESS_TOKEN;
 
   payload.mcpServers ||= {};
   payload.mcpServers["meta-marketing-plugin"] = {
     command: "node",
     args: [path.join(claudeMetaRoot, "scripts", "launch-meta-server.js")],
     ...(Object.keys(existingEnv).length > 0 ? { env: existingEnv } : {}),
+  };
+  payload.mcpServers["gemini-creative-plugin"] = {
+    command: "node",
+    args: [path.join(claudeMetaRoot, "scripts", "launch-gemini-server.js")],
+    ...(Object.keys(existingGeminiEnv).length > 0
+      ? { env: existingGeminiEnv }
+      : {}),
   };
   if (payload.mcpServers.meta) {
     delete payload.mcpServers.meta;
@@ -268,6 +279,11 @@ function installClaudeAssets() {
   copyFile(
     path.join(mcpClaudeDir, "launch-meta-server.js"),
     path.join(claudeMetaRoot, "scripts", "launch-meta-server.js"),
+    true
+  );
+  copyFile(
+    path.join(mcpClaudeDir, "launch-gemini-server.js"),
+    path.join(claudeMetaRoot, "scripts", "launch-gemini-server.js"),
     true
   );
   copyDirectory(

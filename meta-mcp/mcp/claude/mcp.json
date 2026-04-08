@@ -6,6 +6,13 @@
         "./scripts/launch-meta-server.js"
       ],
       "cwd": ".claude/meta-marketing-plugin"
+    },
+    "gemini-creative-plugin": {
+      "command": "node",
+      "args": [
+        "./scripts/launch-gemini-server.js"
+      ],
+      "cwd": ".claude/meta-marketing-plugin"
     }
   }
 }

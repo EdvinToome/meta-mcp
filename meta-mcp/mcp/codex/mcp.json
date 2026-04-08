@@ -6,6 +6,13 @@
         "./meta-mcp/mcp/codex/launch-meta-server.js"
       ],
       "cwd": "."
+    },
+    "gemini-creative-plugin": {
+      "command": "node",
+      "args": [
+        "./meta-mcp/mcp/codex/launch-gemini-server.js"
+      ],
+      "cwd": "."
     }
   }
 }
