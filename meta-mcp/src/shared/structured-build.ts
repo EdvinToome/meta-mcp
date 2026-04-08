@@ -31,6 +31,20 @@ const jsonToolResult = (payload: unknown, isError = false): MetaToolResult => ({
   ...(isError ? { isError: true as const } : {}),
 });
 
+type CampaignPayload = {
+  campaign_id: string;
+  ads_manager_url?: string;
+};
+
+type CampaignCacheEntry = {
+  payload: CampaignPayload;
+  settings: {
+    status: string;
+    daily_budget: number;
+    special_ad_categories: string;
+  };
+};
+
 function formatLocalIso(date: Date) {
   const pad = (value: number) => String(value).padStart(2, "0");
   const offsetMinutes = -date.getTimezoneOffset();
@@ -101,14 +115,91 @@ function validateBuild(build: StructuredAdBuildItemParams) {
   }
 }
 
+function buildCampaignCacheKey(build: StructuredAdBuildItemParams) {
+  return `${build.account_id}::${build.campaign_name}`;
+}
+
+function normalizeSpecialAdCategories(build: StructuredAdBuildItemParams) {
+  const categories = build.special_ad_categories || ["NONE"];
+  return [...categories].sort().join(",");
+}
+
+function validateCampaignSettings(
+  build: StructuredAdBuildItemParams,
+  existing: CampaignCacheEntry
+) {
+  const status = build.status || "PAUSED";
+  const dailyBudget = Math.round(build.daily_budget_major * 100);
+  const specialAdCategories = normalizeSpecialAdCategories(build);
+
+  if (
+    existing.settings.status !== status ||
+    existing.settings.daily_budget !== dailyBudget ||
+    existing.settings.special_ad_categories !== specialAdCategories
+  ) {
+    throw new Error(
+      `Build "${build.key || build.campaign_name}" reuses campaign "${build.campaign_name}" with conflicting campaign-level settings. ` +
+        "Use matching status, daily_budget_major, and special_ad_categories for all builds that share a campaign."
+    );
+  }
+}
+
+async function getOrCreateCampaign(
+  metaClient: MetaApiClient,
+  build: StructuredAdBuildItemParams,
+  campaignCache: Map<string, CampaignCacheEntry>
+) {
+  const cacheKey = buildCampaignCacheKey(build);
+  const cached = campaignCache.get(cacheKey);
+
+  if (cached) {
+    validateCampaignSettings(build, cached);
+    return {
+      campaign: cached.payload,
+      reused: true,
+    };
+  }
+
+  const status = build.status || "PAUSED";
+  const dailyBudget = Math.round(build.daily_budget_major * 100);
+  const specialAdCategories = normalizeSpecialAdCategories(build);
+  const campaign = parseStepPayload(
+    "create_campaign",
+    await createCampaignAction(metaClient, {
+      account_id: build.account_id,
+      name: build.campaign_name,
+      objective: "OUTCOME_SALES",
+      status,
+      daily_budget: dailyBudget,
+      special_ad_categories: build.special_ad_categories,
+      bid_strategy: "LOWEST_COST_WITHOUT_CAP",
+      budget_optimization: true,
+    })
+  ) as CampaignPayload;
+
+  campaignCache.set(cacheKey, {
+    payload: campaign,
+    settings: {
+      status,
+      daily_budget: dailyBudget,
+      special_ad_categories: specialAdCategories,
+    },
+  });
+
+  return {
+    campaign,
+    reused: false,
+  };
+}
+
 async function runSingleBuild(
   metaClient: MetaApiClient,
-  build: StructuredAdBuildItemParams
+  build: StructuredAdBuildItemParams,
+  campaignCache: Map<string, CampaignCacheEntry>
 ) {
   validateBuild(build);
 
   const status = build.status || "PAUSED";
-  const budgetMinor = Math.round(build.daily_budget_major * 100);
   const descriptionText = buildDescriptionText(build);
   const startTime = build.start_time || buildDefaultStartTime();
   const copyVariants = build.copy_variants;
@@ -127,18 +218,10 @@ async function runSingleBuild(
     imageHash = upload.upload_details.image_hash;
   }
 
-  const campaign = parseStepPayload(
-    "create_campaign",
-    await createCampaignAction(metaClient, {
-      account_id: build.account_id,
-      name: build.campaign_name,
-      objective: "OUTCOME_SALES",
-      status,
-      daily_budget: budgetMinor,
-      special_ad_categories: build.special_ad_categories,
-      bid_strategy: "LOWEST_COST_WITHOUT_CAP",
-      budget_optimization: true,
-    })
+  const { campaign, reused } = await getOrCreateCampaign(
+    metaClient,
+    build,
+    campaignCache
   );
 
   const adSet = parseStepPayload(
@@ -243,6 +326,7 @@ async function runSingleBuild(
     created: {
       campaign_id: campaign.campaign_id,
       campaign_url: campaign.ads_manager_url,
+      campaign_reused: reused,
       ad_set_id: adSet.ad_set_id,
       ad_set_url: adSet.ads_manager_url,
       creative_id: creative.creative_id,
@@ -257,11 +341,12 @@ export async function runStructuredAdBuildAction(
   params: RunStructuredAdBuildParams
 ): Promise<MetaToolResult> {
   const builds = [];
+  const campaignCache = new Map<string, CampaignCacheEntry>();
   let hasErrors = false;
 
   for (const build of params.builds) {
     try {
-      builds.push(await runSingleBuild(metaClient, build));
+      builds.push(await runSingleBuild(metaClient, build, campaignCache));
     } catch (error) {
       hasErrors = true;
       builds.push({
