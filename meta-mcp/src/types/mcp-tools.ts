@@ -1038,10 +1038,23 @@ export const StructuredAdBuildItemSchema = z.object({
 });
 
 export const RunStructuredAdBuildSchema = z.object({
-  builds: z
-    .array(StructuredAdBuildItemSchema)
-    .min(1)
-    .describe("One or more deterministic Meta ad builds to run"),
+  builds: z.preprocess(
+    (value) => {
+      if (typeof value !== "string") {
+        return value;
+      }
+
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value;
+      }
+    },
+    z
+      .array(StructuredAdBuildItemSchema)
+      .min(1)
+      .describe("One or more deterministic Meta ad builds to run")
+  ),
 });
 export const PreviewAdSchema = z.object({
   creative_id: z.string().describe("Creative ID to preview"),

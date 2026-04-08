@@ -40,6 +40,7 @@ Workflow:
    - if the gate fails for a creative, request a rewrite from `ad-copy-writer` for that creative before proceeding
    - keep strict one-to-one mapping: creative N -> copy output N -> build item N
 5. Build `run_structured_ad_build.builds` with one build item per creative:
+   - pass `builds` as a real JSON array, not a stringified JSON value
    - each item must include that creative's own `image_path`/`image_hash`, `target_url`, and `copy_variants`
    - keep the same `campaign_name` across items when the intent is one campaign with multiple ad sets
    - keep strict one-to-one mapping: creative N -> `copy_variants` N -> build item N -> ad set N
