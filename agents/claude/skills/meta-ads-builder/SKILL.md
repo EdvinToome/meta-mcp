@@ -51,3 +51,4 @@ Workflow:
 Rules:
 - Use Meta MCP tools only.
 - Do not invent claims or IDs.
+- Since we use dynamic creative ad sets, each ad set can only have exactly one ad.

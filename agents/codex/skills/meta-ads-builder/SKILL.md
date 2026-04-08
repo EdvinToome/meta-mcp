@@ -51,3 +51,4 @@ Rules:
 - Use Meta MCP tools only.
 - Do not invent profile IDs or claims.
 - Stop on missing required inputs.
+- Since we use dynamic creative ad sets, each ad set can only have exactly one ad.
