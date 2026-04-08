@@ -15,11 +15,9 @@ Workflow:
    - campaign-level: budget, status, CTA, countries, page/pixel identity
    - creative-level: image, `target_url`, `creative_description`
    - If `image_path` or `image_hash` is provided, continue directly to publish.
-   - If image is missing, run generation first through Gemini MCP tools:
-     - `create_creative_generation_batch`
-     - `review_creative_batch`
-     - `approve_creative_candidate`
-     - `provide_final_overlay_asset` (only for visual-only approvals)
+   - If image is missing, delegate to subagent `gemini-image-writer`.
+   - Subagent must build generation plan itself (template choice, counts, generation mode, and full prompts) from local skill knowledge.
+   - Do not ask user to choose template/count/mode unless user explicitly wants manual override.
    - Do not call publish flow before explicit candidate approval.
 3. Build campaign, ad set and ad names with this required format:
    - `Brand | Country | Date | Description`
@@ -57,6 +55,20 @@ Workflow:
    - original `headline` and `primary_text`
    - English translation of `headline` and `primary_text`
    - next operator actions
+
+Gemini subagent contract:
+- Input: creative brief, product facts, brand DNA context.
+- Output:
+  - selected template id
+  - generation_mode
+  - full_count and visual_only_count
+  - full_prompt and visual_only_prompt (when needed)
+  - recommended candidate for approval and rationale
+- Execution path:
+  - `create_creative_generation_batch`
+  - `review_creative_batch`
+  - `approve_creative_candidate`
+  - `provide_final_overlay_asset` when approved candidate is visual-only
 
 Rules:
 - Use Meta MCP tools only.

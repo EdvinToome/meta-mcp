@@ -1105,6 +1105,18 @@ export const CreateCreativeGenerationBatchSchema = z.object({
     .array(z.string().min(1))
     .optional()
     .describe("Optional short text overlays for full mode"),
+  full_prompt: z
+    .string()
+    .optional()
+    .describe("Fully composed full-mode prompt produced by subagent planning"),
+  visual_only_prompt: z
+    .string()
+    .optional()
+    .describe("Fully composed visual-only prompt produced by subagent planning"),
+  plan_notes: z
+    .string()
+    .optional()
+    .describe("Optional planner notes for auditability"),
 });
 
 export const GenerationBatchIdSchema = z.object({

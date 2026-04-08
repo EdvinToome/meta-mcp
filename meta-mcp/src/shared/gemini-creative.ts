@@ -4,6 +4,11 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { GoogleGenAI } from "@google/genai";
 import { parse } from "yaml";
+import {
+  NANO_BANANA_PLAYBOOK,
+  STATIC_BANNER_HEURISTICS,
+  TEMPLATE_LIBRARY,
+} from "./gemini-prompt-knowledge.js";
 import type {
   CreateCreativeGenerationBatchParams,
   RestartGenerationBatchParams,
@@ -155,6 +160,10 @@ function buildBasePrompt(
           "- Keep clean negative space for external text overlay",
         ].join("\n");
 
+  const normalizedTemplateId = (request.template_id || "").trim().toLowerCase();
+  const template =
+    TEMPLATE_LIBRARY[normalizedTemplateId] || TEMPLATE_LIBRARY.offer_promotion;
+
   return [
     `CONCEPT: ${request.concept}`,
     request.creative_description
@@ -166,6 +175,17 @@ function buildBasePrompt(
     `COUNTRY_CONTEXT: ${request.country}`,
     "BRAND_DNA:",
     ...brandDnaContext.map((line) => `- ${line}`),
+    `TEMPLATE: ${template.title}`,
+    "TEMPLATE_RULES:",
+    ...template.instructions.map((rule) => `- ${rule}`),
+    "NANO_BANANA_PLAYBOOK:",
+    ...NANO_BANANA_PLAYBOOK.workflow.map((rule) => `- ${rule}`),
+    "PROMPT_STRUCTURE:",
+    ...NANO_BANANA_PLAYBOOK.promptStructure.map((rule) => `- ${rule}`),
+    "STATIC_BANNER_SCROLL_STOP:",
+    ...STATIC_BANNER_HEURISTICS.scrollStop.map((rule) => `- ${rule}`),
+    "STATIC_BANNER_RULES:",
+    ...STATIC_BANNER_HEURISTICS.mandatoryRules.map((rule) => `- ${rule}`),
     "COMPOSITION:",
     "- Define clear primary subject focus",
     "- Add secondary elements only if they support the main message",
@@ -243,7 +263,11 @@ async function generateLane(
     return [];
   }
 
-  const prompt = buildBasePrompt(batch.request, mode, batch.brand_dna_context);
+  const promptOverride =
+    mode === "full" ? batch.request.full_prompt : batch.request.visual_only_prompt;
+  const prompt =
+    promptOverride?.trim() ||
+    buildBasePrompt(batch.request, mode, batch.brand_dna_context);
   const ai = getGeminiClient();
   const response = await ai.models.generateImages({
     model: GEMINI_MODEL,

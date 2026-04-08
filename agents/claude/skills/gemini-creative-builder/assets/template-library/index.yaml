@@ -1,0 +1,121 @@
+templates:
+  - id: template_01
+    title: Headline
+    file: assets/template-library/prompts/headline.md
+  - id: template_02
+    title: Offer/Promotion
+    file: assets/template-library/prompts/offer-promotion.md
+  - id: template_03
+    title: Testimonials
+    file: assets/template-library/prompts/testimonials.md
+  - id: template_04
+    title: Features/Benefits Point-Out
+    file: assets/template-library/prompts/features-benefits-point-out.md
+  - id: template_05
+    title: Bullet-Points
+    file: assets/template-library/prompts/bullet-points.md
+  - id: template_06
+    title: Social Proof
+    file: assets/template-library/prompts/social-proof.md
+  - id: template_07
+    title: Us vs Them
+    file: assets/template-library/prompts/us-vs-them.md
+  - id: template_08
+    title: Before & After (UGC Native)
+    file: assets/template-library/prompts/before-after-ugc-native.md
+  - id: template_09
+    title: Negative Marketing (Bait & Switch)
+    file: assets/template-library/prompts/negative-marketing-bait-switch.md
+  - id: template_10
+    title: Press/Editorial
+    file: assets/template-library/prompts/press-editorial.md
+  - id: template_11
+    title: Pull-Quote Review Card
+    file: assets/template-library/prompts/pull-quote-review-card.md
+  - id: template_12
+    title: Lifestyle Action + Product Colorway Array
+    file: assets/template-library/prompts/lifestyle-action-product-colorway-array.md
+  - id: template_13
+    title: Stat Surround / Callout Radial (Product Hero)
+    file: assets/template-library/prompts/stat-surround-callout-radial-product-hero.md
+  - id: template_14
+    title: Bundle Showcase + Benefit Bar
+    file: assets/template-library/prompts/bundle-showcase-benefit-bar.md
+  - id: template_15
+    title: Social Comment Screenshot + Product
+    file: assets/template-library/prompts/social-comment-screenshot-product.md
+  - id: template_16
+    title: Curiosity Gap / Hook Quote Testimonial
+    file: assets/template-library/prompts/curiosity-gap-hook-quote-testimonial.md
+  - id: template_17
+    title: Verified Review Card
+    file: assets/template-library/prompts/verified-review-card.md
+  - id: template_18
+    title: Stat Surround / Callout Radial (Lifestyle Flatlay)
+    file: assets/template-library/prompts/stat-surround-callout-radial-lifestyle-flatlay.md
+  - id: template_19
+    title: Highlighted / Annotated Testimonial
+    file: assets/template-library/prompts/highlighted-annotated-testimonial.md
+  - id: template_20
+    title: Advertorial / Editorial Content Card
+    file: assets/template-library/prompts/advertorial-editorial-content-card.md
+  - id: template_21
+    title: Bold Statement / Reaction Headline
+    file: assets/template-library/prompts/bold-statement-reaction-headline.md
+  - id: template_22
+    title: Flavor Story / “Tastes Like”
+    file: assets/template-library/prompts/flavor-story-tastes-like.md
+  - id: template_23
+    title: Long-Form Manifesto / Letter Ad
+    file: assets/template-library/prompts/long-form-manifesto-letter-ad.md
+  - id: template_24
+    title: Product + Comment Callout (Faux Social Proof)
+    file: assets/template-library/prompts/product-comment-callout-faux-social-proof.md
+  - id: template_25
+    title: Us vs. Them Color Split
+    file: assets/template-library/prompts/us-vs-them-color-split.md
+  - id: template_26
+    title: Stat Callout (Data-Driven Lifestyle)
+    file: assets/template-library/prompts/stat-callout-data-driven-lifestyle.md
+  - id: template_27
+    title: Benefit Checklist Showcase (Split Product + Info)
+    file: assets/template-library/prompts/benefit-checklist-showcase-split-product-info.md
+  - id: template_28
+    title: Feature Arrow Callout / Product Annotation
+    file: assets/template-library/prompts/feature-arrow-callout-product-annotation.md
+  - id: template_29
+    title: UGC + Viral Post Overlay
+    file: assets/template-library/prompts/ugc-viral-post-overlay.md
+  - id: template_30
+    title: Hero Statement + Icon Benefit Bar
+    file: assets/template-library/prompts/hero-statement-icon-benefit-bar.md
+  - id: template_31
+    title: Comparison Grid / Table
+    file: assets/template-library/prompts/comparison-grid-table.md
+  - id: template_32
+    title: UGC Story Callout / Text Bubble Explainer
+    file: assets/template-library/prompts/ugc-story-callout-text-bubble-explainer.md
+  - id: template_33
+    title: Faux Press / News Articles Screenshot
+    file: assets/template-library/prompts/faux-press-news-articles-screenshot.md
+  - id: template_34
+    title: Faux iPhone Notes / App Screenshot
+    file: assets/template-library/prompts/faux-iphone-notes-app-screenshot.md
+  - id: template_35
+    title: Hero Product Showcase + Stat Bar
+    file: assets/template-library/prompts/hero-product-showcase-stat-bar.md
+  - id: template_36
+    title: Whiteboard Before / After + Product Hold
+    file: assets/template-library/prompts/whiteboard-before-after-product-hold.md
+  - id: template_37
+    title: Hero Statement + Icon Bar + Offer Burst (Promo Variant)
+    file: assets/template-library/prompts/hero-statement-icon-bar-offer-burst-promo-variant.md
+  - id: template_38
+    title: UGC Lifestyle + Product + Review Card (Split)
+    file: assets/template-library/prompts/ugc-lifestyle-product-review-card-split.md
+  - id: template_39
+    title: Curiosity Gap + Scroll-Stopper Hook
+    file: assets/template-library/prompts/curiosity-gap-scroll-stopper-hook.md
+  - id: template_40
+    title: Native / Ugly Post-It Note Style (Product Hero)
+    file: assets/template-library/prompts/native-ugly-post-it-note-style-product-hero.md
