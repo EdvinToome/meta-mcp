@@ -1,14 +1,14 @@
 ---
 name: gemini-creative-builder
-description: Plan and generate Gemini ad creatives with local template knowledge, then run review/approval before Meta publish.
+description: Orchestrate prompt planning, generation, review, and approval for Gemini ad creatives.
 ---
 
-Use this when no final image exists and you need generation + approval.
+Use this when no final image exists and you need prompt planning + generation + approval.
 
 Structure (progressive disclosure):
 - `SKILL.md` for workflow rules
-- `references/` for methodology and Notion-derived guidance
-- `assets/` for template catalog and prompt blocks
+- `gemini-prompt-builder` skill for prompt planning
+- `references/` + `assets/` for generation constraints and template library
 
 Runtime rules:
 - Use Gemini MCP tools only for image generation flow.
@@ -17,40 +17,39 @@ Runtime rules:
 - Do not query Notion at runtime.
 
 Default behavior:
-- Build generation plan automatically.
-- Do not ask the user for template/count/mode unless user asks for manual control.
-
-Plan builder requirements:
-1. Read:
-   - `references/notion-workflow.md`
-   - `references/static-banner-rules.md`
-   - `assets/template-library/index.yaml`
-   - selected template prompt files from `assets/template-library/prompts/`
-2. Pick template from local index based on creative brief.
-3. Set defaults:
-   - `generation_mode=interactive`
-   - `full_count=2`
-   - `visual_only_count=2`
-4. Build two standalone prompts:
-   - `full_prompt`
-   - `visual_only_prompt`
-5. Include hardening blocks:
-   - composition hierarchy
-   - camera + lighting intent
-   - quality + artifact suppression
-   - conversion/readability constraints
-   - scroll-stop mechanism from static-banner rules
+- Use two-phase flow:
+  1) prompt planning
+  2) generation execution
 
 Execution sequence:
-1. `create_creative_generation_batch`
-2. `review_creative_batch`
-3. Present options: `select`, `edit`, `start over`
-4. `approve_creative_candidate`
-5. if mode is visual-only: gather final overlay path, call `provide_final_overlay_asset`
+1. Run `gemini-prompt-builder` subagent and return:
+   - `selected_template_id`
+   - `creative_brief`
+   - `required_reference_images`
+   - `base_prompt_full`
+   - `base_prompt_visual_only`
+   - `variants[]` (hook/proof/layout-tension)
+2. Ask user which variants to execute and attempts per variant.
+3. For each selected variant call `create_creative_generation_batch` with:
+   - `template_id`
+   - `creative_brief` (required)
+   - `reference_images` (required)
+   - `full_prompt = base_prompt_full + variant.full_prompt_delta`
+   - `visual_only_prompt = base_prompt_visual_only + variant.visual_prompt_delta`
+   - selected counts + mode
+4. Call `review_creative_batch`.
+5. Present options: `select`, `edit`, `start over`, `retry`.
+6. Call `approve_creative_candidate`.
+7. If approved mode is visual-only: gather final overlay path and call `provide_final_overlay_asset`.
 
 Return contract:
 - selected template id + reason
+- selected variant ids + attempts
 - generation_mode + counts
 - exact prompts used
 - batch id + approved candidate id
 - final image path for publish handoff
+
+Important:
+- Keep landing page in `creative_brief` metadata.
+- Prompt text should focus on visual instructions only.

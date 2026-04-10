@@ -14,9 +14,10 @@ Workflow:
    - campaign-level: budget, status, CTA, countries, page/pixel identity
    - creative-level: image, `target_url`, `creative_description`
    - If `image_path` or `image_hash` is provided, continue directly to publish.
-   - If image is missing, delegate to subagent `gemini_image_writer`.
-   - Subagent must build generation plan itself (template choice, counts, generation mode, and full prompts) from local skill knowledge.
-   - Do not ask user to choose template/count/mode unless user explicitly wants manual override.
+   - If image is missing:
+     - first delegate to subagent `gemini_prompt_builder` for prompt plan + variant matrix
+     - then let operator choose variants and attempts
+     - then delegate to subagent `gemini_image_writer` for generation execution
    - Do not call publish flow before explicit candidate approval.
 3. Build campaign, ad set and ad names with this required format:
    - `Brand | Country | Date | Description`
@@ -56,15 +57,19 @@ Workflow:
    - next operator actions
 
 Gemini subagent contract:
-- Input: creative brief, product facts, brand DNA context.
-- Output:
-  - selected template id
-  - generation_mode
-  - full_count and visual_only_count
-  - full_prompt and visual_only_prompt (when needed)
-  - recommended candidate for approval and rationale
-- Execution path:
-  - `create_creative_generation_batch`
+- Prompt builder (`gemini_prompt_builder`) output:
+  - `selected_template_id`
+  - `creative_brief`
+  - `required_reference_images`
+  - `base_prompt_full`
+  - `base_prompt_visual_only`
+  - `variants[]` with `hook`, `proof_style`, `layout_tension`, prompt deltas, and recommended attempts
+- Generation executor (`gemini_image_writer`) path per selected variant:
+  - call `create_creative_generation_batch` with required:
+    - `template_id`
+    - `creative_brief`
+    - `reference_images`
+    - prompts composed from base + variant deltas
   - `review_creative_batch`
   - `approve_creative_candidate`
   - `provide_final_overlay_asset` when approved candidate is visual-only

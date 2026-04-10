@@ -1,38 +1,38 @@
 name = "gemini_image_writer"
-description = "Subagent for Gemini creative image planning, prompt building, generation, and approval flow before Meta publish."
+description = "Subagent for Gemini generation execution, review, and approval after prompt planning is done."
 model = "gpt-5.4-mini"
 model_reasoning_effort = "medium"
 developer_instructions = """
-Inputs are creative brief, target_url/product facts, and site_profile/brand context.
-Goal: produce approved image output for publish flow with minimal user burden.
+Inputs are selected prompt-plan outputs from gemini-prompt-builder:
+- selected_template_id
+- creative_brief
+- reference image paths/urls
+- selected variants and attempt counts
+
+Goal: execute generation, review candidates, and finalize approved asset.
 
 Read strictly only:
 1) this gemini_image_writer instructions file
-2) ~/.meta-marketing-plugin/brand_dna_copy.yaml
-3) ~/.meta-marketing-plugin/brand_dna_visual.yaml
-4) agents/codex/skills/gemini-creative-builder/SKILL.md
-5) agents/codex/skills/gemini-creative-builder/references/*
-6) agents/codex/skills/gemini-creative-builder/assets/*
-
-Do not query Notion at runtime.
-Do not ask user to choose template, count, mode, or concept unless user explicitly asks for manual control.
-
-Planning requirements:
-- Choose template id from local template index.
-- Set generation_mode automatically:
-  - interactive for normal chat iteration
-  - deferred_batch for non-urgent high-volume generation
-- Set counts:
-  - default full_count=2 and visual_only_count=2
-  - adjust based on complexity.
-- Build full_prompt and visual_only_prompt using local references + static-banner heuristics + brand DNA.
+2) agents/codex/skills/gemini-creative-builder/SKILL.md
+3) agents/codex/skills/gemini-prompt-builder/SKILL.md
 
 Execution path (Gemini MCP tools):
 1) create_creative_generation_batch
 2) review_creative_batch
-3) present options: select/edit/start over
+3) present options: select/edit/start over/retry
 4) approve_creative_candidate
 5) if visual_only approved, request final overlay image path and call provide_final_overlay_asset
+
+Execution rules:
+- If prompt-plan inputs are missing, call subagent `gemini_prompt_builder` first and use its JSON output.
+- Do not continue to generation before prompt-plan exists.
+- Do not invent new strategy if prompt-plan is provided.
+- For each selected variant:
+  - Compose full_prompt as `base_prompt_full + variant.full_prompt_delta`
+  - Compose visual_only_prompt as `base_prompt_visual_only + variant.visual_prompt_delta`
+  - Use variant.recommended_attempts (or explicit user override) for count.
+- Require creative_brief + reference_images for every generation call.
+- Keep generation_mode interactive by default unless user asks otherwise.
 
 Hard rules:
 - No fallback provider.
@@ -42,6 +42,7 @@ Hard rules:
 Output requirements:
 - Return structured summary with:
   - selected template
+  - variant ids executed
   - generation_mode
   - counts
   - batch_id

@@ -1,13 +1,13 @@
 import os from "os";
 import path from "path";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
+import { fileURLToPath } from "node:url";
 import { GoogleGenAI } from "@google/genai";
 import { parse } from "yaml";
 import {
   NANO_BANANA_PLAYBOOK,
   STATIC_BANNER_HEURISTICS,
-  TEMPLATE_LIBRARY,
 } from "./gemini-prompt-knowledge.js";
 import type {
   CreateCreativeGenerationBatchParams,
@@ -20,7 +20,22 @@ const BATCH_STORE_PATH = path.join(
   "gemini-creative-batches.local.json"
 );
 const ASSET_ROOT = path.join(RUNTIME_DIR, "generated-creatives");
-const GEMINI_MODEL = process.env.GEMINI_IMAGE_MODEL || "imagen-4.0-generate-001";
+const DEFAULT_GEMINI_IMAGE_MODEL = "gemini-3-pro-image-preview";
+const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(MODULE_DIR, "..", "..", "..");
+const GEMINI_SKILL_ROOT = path.join(
+  REPO_ROOT,
+  "agents",
+  "codex",
+  "skills",
+  "gemini-creative-builder"
+);
+const TEMPLATE_INDEX_PATH = path.join(
+  GEMINI_SKILL_ROOT,
+  "assets",
+  "template-library",
+  "index.yaml"
+);
 
 type CandidateMode = "full" | "visual_only";
 type BatchState =
@@ -62,6 +77,15 @@ interface BatchStore {
 }
 
 const DEFAULT_STORE: BatchStore = { batches: {} };
+let templateEntryMapCache: Map<string, { title: string; file: string }> | null = null;
+
+function section(title: string, lines: string[]) {
+  return [`${title}:`, ...lines.map((line) => `- ${line}`)].join("\n");
+}
+
+function sectionText(title: string, content: string) {
+  return `${title}:\n${content}`;
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -81,6 +105,40 @@ async function writeStore(store: BatchStore) {
   await writeFile(BATCH_STORE_PATH, JSON.stringify(store, null, 2), "utf8");
 }
 
+async function loadTemplateEntryMap() {
+  if (templateEntryMapCache) {
+    return templateEntryMapCache;
+  }
+
+  const raw = await readFile(TEMPLATE_INDEX_PATH, "utf8");
+  const parsed = parse(raw) as { templates?: Array<{ id: string; title: string; file: string }> };
+  const templates = parsed.templates || [];
+  const entryMap = new Map<string, { title: string; file: string }>();
+  for (const item of templates) {
+    entryMap.set(item.id.trim().toLowerCase(), {
+      title: item.title,
+      file: item.file,
+    });
+  }
+  templateEntryMapCache = entryMap;
+  return entryMap;
+}
+
+async function loadTemplatePrompt(templateId: string) {
+  const entryMap = await loadTemplateEntryMap();
+  const entry = entryMap.get(templateId.trim().toLowerCase());
+  if (!entry) {
+    throw new Error(`Unknown template_id: ${templateId}`);
+  }
+  const promptPath = path.join(GEMINI_SKILL_ROOT, entry.file);
+  const prompt = (await readFile(promptPath, "utf8")).trim();
+  return {
+    id: templateId,
+    title: entry.title,
+    prompt,
+  };
+}
+
 function getGeminiClient() {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -93,6 +151,131 @@ function getGeminiClient() {
     );
   }
   return new GoogleGenAI({ apiKey });
+}
+
+function getGeminiImageModel() {
+  const model = process.env.GEMINI_IMAGE_MODEL || DEFAULT_GEMINI_IMAGE_MODEL;
+  if (!model.startsWith("gemini-")) {
+    throw new Error(
+      "Only gemini-* image models are supported. Set GEMINI_IMAGE_MODEL to a gemini image model."
+    );
+  }
+  return model;
+}
+
+function extractInlineImageBytes(response: any): string | undefined {
+  const candidates = response?.candidates || [];
+  for (const candidate of candidates) {
+    const parts = candidate?.content?.parts || [];
+    for (const part of parts) {
+      const data = part?.inlineData?.data;
+      if (data) {
+        return data;
+      }
+    }
+  }
+  return undefined;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetriableGeminiError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("503") ||
+    message.includes("500") ||
+    message.includes("429") ||
+    message.includes("resource_exhausted") ||
+    message.includes("unavailable") ||
+    message.includes("timeout") ||
+    message.includes("deadline exceeded")
+  );
+}
+
+async function withGeminiRetry<T>(operation: () => Promise<T>) {
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (!isRetriableGeminiError(error) || attempt === maxAttempts) {
+        throw error;
+      }
+      await sleep(400 * 2 ** (attempt - 1));
+    }
+  }
+  throw new Error("Gemini retry loop failed unexpectedly");
+}
+
+function looksLikeUrl(value: string) {
+  return value.startsWith("http://") || value.startsWith("https://");
+}
+
+function resolveMimeTypeFromRef(reference: string) {
+  const extension = path.extname(reference.split("?")[0].toLowerCase());
+  if (extension === ".png") return "image/png";
+  if (extension === ".jpg" || extension === ".jpeg") return "image/jpeg";
+  if (extension === ".webp") return "image/webp";
+  return "image/png";
+}
+
+async function loadReferenceImageParts(referenceImages: string[] | undefined) {
+  if (!referenceImages || referenceImages.length === 0) {
+    return [];
+  }
+
+  const parts = [];
+  for (const referenceImage of referenceImages) {
+    const mimeType = resolveMimeTypeFromRef(referenceImage);
+    if (looksLikeUrl(referenceImage)) {
+      const response = await fetch(referenceImage);
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch reference image: ${referenceImage} (${response.status})`
+        );
+      }
+      const bytes = Buffer.from(await response.arrayBuffer()).toString("base64");
+      parts.push({ inlineData: { data: bytes, mimeType } });
+      continue;
+    }
+
+    const bytes = (await readFile(referenceImage)).toString("base64");
+    parts.push({ inlineData: { data: bytes, mimeType } });
+  }
+  return parts;
+}
+
+async function generateImageBytesBatch(params: {
+  ai: GoogleGenAI;
+  model: string;
+  prompt: string;
+  count: number;
+  aspectRatio: string;
+  referenceImages?: string[];
+}) {
+  const referenceParts = await loadReferenceImageParts(params.referenceImages);
+  const jobs = Array.from({ length: params.count }, async () => {
+    const response = await withGeminiRetry(() =>
+      params.ai.models.generateContent({
+        model: params.model,
+        contents: [...referenceParts, params.prompt],
+        config: {
+          responseModalities: ["IMAGE"],
+          imageConfig: {
+            aspectRatio: params.aspectRatio,
+          },
+        },
+      })
+    );
+    return extractInlineImageBytes(response);
+  });
+
+  return Promise.all(jobs);
 }
 
 function normalizeGeminiError(error: unknown): Error {
@@ -133,17 +316,19 @@ function normalizeGeminiError(error: unknown): Error {
   );
 }
 
-function buildBasePrompt(
+async function buildBasePrompt(
   request: CreateCreativeGenerationBatchParams,
   mode: CandidateMode,
   brandDnaContext: string[]
 ) {
+  const template = await loadTemplatePrompt(request.template_id);
+  const brief = request.creative_brief;
   const overlayInstructions =
     request.overlay_text && request.overlay_text.length > 0
       ? request.overlay_text.map((line) => `- ${line}`).join("\n")
       : "- Keep overlay concise and legible";
 
-  const modeBlock =
+  const modeRules =
     mode === "full"
       ? [
           "MODE: full creative with text overlay",
@@ -152,58 +337,64 @@ function buildBasePrompt(
           "- Max 8 words per line",
           "- Keep strong contrast and clear hierarchy",
           overlayInstructions,
-        ].join("\n")
+        ]
       : [
           "MODE: visual only (strict no text)",
           "NO_TEXT RULES:",
           "- No words, letters, logos, glyph-like marks, or pseudo typography",
           "- Keep clean negative space for external text overlay",
-        ].join("\n");
+        ];
 
-  const normalizedTemplateId = (request.template_id || "").trim().toLowerCase();
-  const template =
-    TEMPLATE_LIBRARY[normalizedTemplateId] || TEMPLATE_LIBRARY.offer_promotion;
-
-  return [
+  const blocks = [
     `CONCEPT: ${request.concept}`,
     request.creative_description
       ? `CREATIVE_DESCRIPTION: ${request.creative_description}`
       : "",
-    request.template_id ? `TEMPLATE_ID: ${request.template_id}` : "",
-    `ASPECT_RATIO: ${request.aspect_ratio}`,
-    `LANGUAGE_CONTEXT: ${request.language}`,
-    `COUNTRY_CONTEXT: ${request.country}`,
-    "BRAND_DNA:",
-    ...brandDnaContext.map((line) => `- ${line}`),
-    `TEMPLATE: ${template.title}`,
-    "TEMPLATE_RULES:",
-    ...template.instructions.map((rule) => `- ${rule}`),
-    "NANO_BANANA_PLAYBOOK:",
-    ...NANO_BANANA_PLAYBOOK.workflow.map((rule) => `- ${rule}`),
-    "PROMPT_STRUCTURE:",
-    ...NANO_BANANA_PLAYBOOK.promptStructure.map((rule) => `- ${rule}`),
-    "STATIC_BANNER_SCROLL_STOP:",
-    ...STATIC_BANNER_HEURISTICS.scrollStop.map((rule) => `- ${rule}`),
-    "STATIC_BANNER_RULES:",
-    ...STATIC_BANNER_HEURISTICS.mandatoryRules.map((rule) => `- ${rule}`),
-    "COMPOSITION:",
-    "- Define clear primary subject focus",
-    "- Add secondary elements only if they support the main message",
-    "- Reserve negative space for conversion-oriented overlays",
-    "CAMERA_AND_LIGHTING:",
-    "- Use deliberate camera angle and focal depth",
-    "- Set cinematic but realistic lighting",
-    "QUALITY:",
-    "- High detail, clean edges, no artifact clutter",
-    "- Avoid distorted anatomy and malformed objects",
-    "NEGATIVE_CONSTRAINTS:",
-    "- No gibberish text",
-    "- No watermark-like marks",
-    "- No random brand symbols",
-    modeBlock,
-  ]
-    .filter(Boolean)
-    .join("\n");
+    section("CREATIVE_BRIEF", [
+      `Objective: ${brief.objective}`,
+      `Audience: ${brief.audience}`,
+      `Awareness Stage: ${brief.awareness_stage}`,
+      `Angle: ${brief.angle}`,
+      `Offer: ${brief.offer}`,
+      `Proof Type: ${brief.proof_type}`,
+      `CTA: ${brief.cta}`,
+      `Landing Page: ${brief.landing_page}`,
+    ]),
+    section("CONTEXT", [
+      `Template ID: ${request.template_id}`,
+      `Template Title: ${template.title}`,
+      `Aspect Ratio: ${request.aspect_ratio}`,
+      `Language: ${request.language}`,
+      `Country: ${request.country}`,
+    ]),
+    section("BRAND_DNA", brandDnaContext),
+    sectionText("TEMPLATE_PROMPT_SOURCE", template.prompt),
+    section("NANO_BANANA_PLAYBOOK", NANO_BANANA_PLAYBOOK.workflow),
+    section("PROMPT_STRUCTURE", NANO_BANANA_PLAYBOOK.promptStructure),
+    section("STATIC_BANNER_SCROLL_STOP", STATIC_BANNER_HEURISTICS.scrollStop),
+    section("STATIC_BANNER_RULES", STATIC_BANNER_HEURISTICS.mandatoryRules),
+    section("COMPOSITION", [
+      "Define clear primary subject focus",
+      "Add secondary elements only if they support the main message",
+      "Reserve negative space for conversion-oriented overlays",
+    ]),
+    section("CAMERA_AND_LIGHTING", [
+      "Use deliberate camera angle and focal depth",
+      "Set cinematic but realistic lighting",
+    ]),
+    section("QUALITY", [
+      "High detail, clean edges, no artifact clutter",
+      "Avoid distorted anatomy and malformed objects",
+    ]),
+    section("NEGATIVE_CONSTRAINTS", [
+      "No gibberish text",
+      "No watermark-like marks",
+      "No random brand symbols",
+    ]),
+    sectionText("MODE_RULES", modeRules.join("\n")),
+  ];
+
+  return blocks.filter(Boolean).join("\n\n");
 }
 
 function flattenBrandDna(source: string, payload: unknown) {
@@ -265,29 +456,29 @@ async function generateLane(
 
   const promptOverride =
     mode === "full" ? batch.request.full_prompt : batch.request.visual_only_prompt;
-  const prompt =
-    promptOverride?.trim() ||
-    buildBasePrompt(batch.request, mode, batch.brand_dna_context);
+  const basePrompt = await buildBasePrompt(batch.request, mode, batch.brand_dna_context);
+  const prompt = promptOverride?.trim()
+    ? `${basePrompt}\n\nUSER_PROMPT_OVERRIDE:\n${promptOverride.trim()}`
+    : basePrompt;
   const ai = getGeminiClient();
-  const response = await ai.models.generateImages({
-    model: GEMINI_MODEL,
+  const model = getGeminiImageModel();
+  const generated = await generateImageBytesBatch({
+    ai,
+    model,
     prompt,
-    config: {
-      numberOfImages: count,
-      aspectRatio: batch.request.aspect_ratio,
-    },
+    count,
+    aspectRatio: batch.request.aspect_ratio,
+    referenceImages: batch.request.reference_images,
   });
-
-  const generated = response.generatedImages || [];
   const assetDir = await ensureAssetDir(batch.batch_id);
 
   return Promise.all(
-    generated.map(async (item, index) => {
+    Array.from({ length: count }, async (_, index) => {
       const candidateId = `${mode === "full" ? "full" : "visual"}_c${String(
         index + 1
       ).padStart(2, "0")}`;
       const imagePath = path.join(assetDir, `${candidateId}.png`);
-      const imageBytes = item.image?.imageBytes;
+      const imageBytes = generated[index];
 
       if (!imageBytes) {
         return {
@@ -438,6 +629,15 @@ export async function approveCreativeCandidate(
   if (!candidate) {
     throw new Error(`Unknown candidate_id: ${candidateId}`);
   }
+  if (candidate.status !== "ready" || !candidate.image_path) {
+    throw new Error("Candidate is not ready for approval");
+  }
+
+  for (const item of batch.candidates) {
+    if (item.candidate_id !== candidateId && item.status === "approved") {
+      item.status = "ready";
+    }
+  }
 
   candidate.status = "approved";
   batch.approved_candidate_id = candidateId;
@@ -466,6 +666,17 @@ export async function provideFinalOverlayAsset(
   if (batch.approved_candidate_id !== candidateId) {
     throw new Error("Candidate must be approved before final overlay handoff");
   }
+  const candidate = batch.candidates.find((item) => item.candidate_id === candidateId);
+  if (!candidate) {
+    throw new Error("Approved candidate record not found");
+  }
+  if (candidate.mode !== "visual_only") {
+    throw new Error("Final overlay asset is only valid for visual-only candidates");
+  }
+  if (!path.isAbsolute(finalImagePath)) {
+    throw new Error("final_image_path must be an absolute path");
+  }
+  await access(finalImagePath);
 
   batch.final_overlay_image_path = finalImagePath;
   batch.state = "final_asset_ready";
@@ -494,20 +705,21 @@ export async function editCandidatePrompt(
 
   const ai = getGeminiClient();
   const mergedPrompt = `${candidate.final_prompt}\nPROMPT_DELTA:\n${promptDelta}`;
-  let response;
+  const model = getGeminiImageModel();
+  let generated: Array<string | undefined>;
   try {
-    response = await ai.models.generateImages({
-      model: GEMINI_MODEL,
+    generated = await generateImageBytesBatch({
+      ai,
+      model,
       prompt: mergedPrompt,
-      config: {
-        numberOfImages: 1,
-        aspectRatio: batch.request.aspect_ratio,
-      },
+      count: 1,
+      aspectRatio: batch.request.aspect_ratio,
+      referenceImages: batch.request.reference_images,
     });
   } catch (error) {
     throw normalizeGeminiError(error);
   }
-  const imageBytes = response.generatedImages?.[0]?.image?.imageBytes;
+  const imageBytes = generated[0];
   if (!imageBytes) {
     throw new Error("Gemini did not return image bytes for prompt edit rerun");
   }

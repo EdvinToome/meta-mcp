@@ -1057,12 +1057,32 @@ export const RunStructuredAdBuildSchema = z.object({
   ),
 });
 
+const CreativeBriefSchema = z.object({
+  objective: z.string().min(1).describe("Campaign objective for this creative"),
+  audience: z.string().min(1).describe("Who this creative is for"),
+  awareness_stage: z
+    .string()
+    .min(1)
+    .describe("Audience awareness stage (cold, warm, hot, etc.)"),
+  angle: z.string().min(1).describe("Primary messaging angle"),
+  offer: z.string().min(1).describe("Offer being promoted"),
+  proof_type: z
+    .string()
+    .min(1)
+    .describe("Proof mechanism (review, stats, authority, etc.)"),
+  cta: z.string().min(1).describe("Exact call to action"),
+  landing_page: z.string().url().describe("Destination URL for this creative"),
+});
+
 export const CreateCreativeGenerationBatchSchema = z.object({
   concept: z.string().min(1).describe("Core creative idea to generate"),
   template_id: z
     .string()
-    .optional()
+    .min(1)
     .describe("Local template id from gemini-creative-builder library"),
+  creative_brief: CreativeBriefSchema.describe(
+    "Structured brief used to compile deterministic prompts"
+  ),
   creative_description: z
     .string()
     .optional()
@@ -1105,6 +1125,10 @@ export const CreateCreativeGenerationBatchSchema = z.object({
     .array(z.string().min(1))
     .optional()
     .describe("Optional short text overlays for full mode"),
+  reference_images: z
+    .array(z.string().min(1))
+    .min(1)
+    .describe("Local paths or URLs for worksheet/product reference images"),
   full_prompt: z
     .string()
     .optional()
