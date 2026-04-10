@@ -23,6 +23,7 @@ Must do:
    - agents/codex/skills/gemini-creative-builder/assets/template-library/index.yaml
    - agents/codex/skills/gemini-creative-builder/assets/template-library/prompts/*
 4) Build prompts from template baseline and replace placeholders with concrete copy/color/layout instructions.
+5) For every variant, return complete ready-to-send `full_prompt` and `visual_only_prompt` values.
 
 Hard rules:
 - Use Gemini-only execution assumptions (`gemini-*` image models).
@@ -65,8 +66,8 @@ Output contract (JSON):
       "hook": "...",
       "proof_style": "...",
       "layout_tension": "...",
-      "full_prompt_delta": "...",
-      "visual_prompt_delta": "...",
+      "full_prompt": "Complete full-mode prompt ready to send directly to Gemini.",
+      "visual_only_prompt": "Complete visual-only prompt ready to send directly to Gemini.",
       "recommended_attempts": 1
     }
   ],

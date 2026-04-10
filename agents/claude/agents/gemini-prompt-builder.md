@@ -21,17 +21,18 @@ Goal:
 - Do not generate images.
 
 Must do:
-1. Call `extract_target_page_facts` for the target URL.
-2. Read local brand DNA:
-   - `.claude/meta-marketing-plugin/brand_dna_copy.yaml` (or `~/.meta-marketing-plugin/brand_dna_copy.yaml` if project file missing)
-   - `.claude/meta-marketing-plugin/brand_dna_visual.yaml` (or `~/.meta-marketing-plugin/brand_dna_visual.yaml` if project file missing)
-3. Read local template catalog + selected template prompt file:
-   - `agents/claude/skills/gemini-creative-builder/assets/template-library/index.yaml`
-   - `agents/claude/skills/gemini-creative-builder/assets/template-library/prompts/*`
-4. Build prompts from template baseline and replace placeholders with concrete copy/color/layout instructions.
+1) Call extract_target_page_facts for the target URL.
+2) Read local brand DNA:
+   - ~/.meta-marketing-plugin/brand_dna_copy.yaml
+   - ~/.meta-marketing-plugin/brand_dna_visual.yaml
+3) Read local template catalog + selected template prompt file:
+   - agents/codex/skills/gemini-creative-builder/assets/template-library/index.yaml
+   - agents/codex/skills/gemini-creative-builder/assets/template-library/prompts/*
+4) Build prompts from template baseline and replace placeholders with concrete copy/color/layout instructions.
+5) For every variant, return complete ready-to-send full_prompt and visual_only_prompt values.
 
 Hard rules:
-- Use Gemini-only execution assumptions (`gemini-*` image models).
+- Use Gemini-only execution assumptions (gemini-* image models).
 - Do not call Gemini generation tools in this subagent.
 - Keep output highly specific and low ambiguity for image generation.
 - Keep landing page in metadata, not in image prompt body except where truly visual.
@@ -41,7 +42,7 @@ Variant matrix:
   - hook
   - proof style
   - layout tension
-- Provide compact matrix defaults (example `2x2x2`) unless user requests more.
+- Provide compact matrix defaults (example 2x2x2) unless user requests more.
 - For each variant include suggested attempt count.
 
 Output contract (JSON):
@@ -72,8 +73,8 @@ Output contract (JSON):
       "hook": "...",
       "proof_style": "...",
       "layout_tension": "...",
-      "full_prompt_delta": "...",
-      "visual_prompt_delta": "...",
+      "full_prompt": "Complete full-mode prompt ready to send directly to Gemini.",
+      "visual_only_prompt": "Complete visual-only prompt ready to send directly to Gemini.",
       "recommended_attempts": 1
     }
   ],

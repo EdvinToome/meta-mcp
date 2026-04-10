@@ -48,7 +48,6 @@ const PRESERVED_GLOBAL_META_FILES = new Set([
 ]);
 
 const codexAgentsRoot = path.join(os.homedir(), ".codex", "agents");
-const codexAdCopyAgentPath = path.join(codexAgentsRoot, "ad-copy-writer.toml");
 
 const codexSourcesDir = path.join(repoRoot, "agents", "codex");
 const mcpCodexDir = path.join(repoRoot, "meta-mcp", "mcp", "codex");
@@ -209,12 +208,23 @@ function ensureMetaConfig() {
   };
 }
 
-function writeCodexAdCopySubagent() {
+function writeCodexSubagents() {
   ensureDirectory(codexAgentsRoot);
-  copyFile(
-    path.join(codexSourcesDir, "agents", "ad-copy-writer.toml"),
-    codexAdCopyAgentPath
-  );
+  const sourceAgentsDir = path.join(codexSourcesDir, "agents");
+  if (!fs.existsSync(sourceAgentsDir)) {
+    throw new Error(`Missing Codex subagents directory: ${sourceAgentsDir}`);
+  }
+
+  const copiedPaths = [];
+  for (const entry of fs.readdirSync(sourceAgentsDir).sort()) {
+    if (!entry.endsWith(".toml")) {
+      continue;
+    }
+    const targetPath = path.join(codexAgentsRoot, entry);
+    copyFile(path.join(sourceAgentsDir, entry), targetPath);
+    copiedPaths.push(targetPath);
+  }
+  return copiedPaths;
 }
 
 function runtimePackageJson() {
@@ -325,7 +335,7 @@ async function main() {
   );
   writeJson(path.join(pluginTarget, "package.json"), runtimePackageJson());
   writeMarketplace();
-  writeCodexAdCopySubagent();
+  const copiedSubagentPaths = writeCodexSubagents();
 
   const created = ensureMetaConfig();
   const ttyAvailable = canOpenTty();
@@ -399,7 +409,9 @@ async function main() {
   console.log(`Bundle: ${pluginTarget}`);
   console.log(`Cache: ${pluginCachePath}`);
   console.log(`Marketplace: ${marketplacePath}`);
-  console.log(`Subagent: ${codexAdCopyAgentPath}`);
+  for (const subagentPath of copiedSubagentPaths) {
+    console.log(`Subagent: ${subagentPath}`);
+  }
   console.log(`Profiles: ${siteProfilesPath}`);
   console.log(`Brand DNA copy: ${created.brandDnaFilesState.copyPath}`);
   console.log(`Brand DNA visual: ${created.brandDnaFilesState.visualPath}`);

@@ -64,13 +64,13 @@ Gemini subagent contract:
   - `required_reference_images`
   - `base_prompt_full`
   - `base_prompt_visual_only`
-  - `variants[]` with `hook`, `proof_style`, `layout_tension`, prompt deltas, and recommended attempts
+  - `variants[]` with `hook`, `proof_style`, `layout_tension`, `full_prompt`, `visual_only_prompt`, and recommended attempts
 - Generation executor (`gemini-image-writer`) path per selected variant:
   - call `create_creative_generation_batch` with required:
-    - `template_id`
-    - `creative_brief`
     - `reference_images`
-    - prompts composed from base + variant deltas
+    - `full_prompt = variant.full_prompt`
+    - `visual_only_prompt = variant.visual_only_prompt`
+    - optional audit metadata when present
   - `review_creative_batch`
   - `approve_creative_candidate`
   - `provide_final_overlay_asset` when approved candidate is visual-only

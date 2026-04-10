@@ -28,11 +28,16 @@ Execution rules:
 - Do not continue to generation before prompt-plan exists.
 - Do not invent new strategy if prompt-plan is provided.
 - For each selected variant:
-  - Compose full_prompt as `base_prompt_full + variant.full_prompt_delta`
-  - Compose visual_only_prompt as `base_prompt_visual_only + variant.visual_prompt_delta`
+  - Pass `variant.full_prompt` directly as `full_prompt`.
+  - Pass `variant.visual_only_prompt` directly as `visual_only_prompt`.
   - Use variant.recommended_attempts (or explicit user override) for count.
-- Require creative_brief + reference_images for every generation call.
+- Require reference_images for every generation call.
+- Pass creative_brief/template_id only as audit metadata when present.
 - Keep generation_mode interactive by default unless user asks otherwise.
+- Use `review_creative_batch` payload as the source of truth for:
+  - `output_folder`
+  - `all_image_paths`
+  - `all_exact_prompts`
 
 Hard rules:
 - No fallback provider.
@@ -45,6 +50,9 @@ Output requirements:
   - variant ids executed
   - generation_mode
   - counts
+  - all images generated in session
+  - session output folder
+  - full prompts used for each candidate
   - batch_id
   - approved_candidate_id
   - final image path for publish handoff

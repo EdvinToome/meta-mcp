@@ -2,13 +2,7 @@ import os from "os";
 import path from "path";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import { fileURLToPath } from "node:url";
 import { GoogleGenAI } from "@google/genai";
-import { parse } from "yaml";
-import {
-  NANO_BANANA_PLAYBOOK,
-  STATIC_BANNER_HEURISTICS,
-} from "./gemini-prompt-knowledge.js";
 import type {
   CreateCreativeGenerationBatchParams,
   RestartGenerationBatchParams,
@@ -20,22 +14,12 @@ const BATCH_STORE_PATH = path.join(
   "gemini-creative-batches.local.json"
 );
 const ASSET_ROOT = path.join(RUNTIME_DIR, "generated-creatives");
+const SESSION_FOLDER = `session_${nowIso()
+  .replace(/[:.]/g, "-")
+  .replace("T", "_")
+  .replace("Z", "")}_${randomUUID().slice(0, 8)}`;
+const SESSION_OUTPUT_DIR = path.join(ASSET_ROOT, SESSION_FOLDER);
 const DEFAULT_GEMINI_IMAGE_MODEL = "gemini-3-pro-image-preview";
-const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(MODULE_DIR, "..", "..", "..");
-const GEMINI_SKILL_ROOT = path.join(
-  REPO_ROOT,
-  "agents",
-  "codex",
-  "skills",
-  "gemini-creative-builder"
-);
-const TEMPLATE_INDEX_PATH = path.join(
-  GEMINI_SKILL_ROOT,
-  "assets",
-  "template-library",
-  "index.yaml"
-);
 
 type CandidateMode = "full" | "visual_only";
 type BatchState =
@@ -65,7 +49,6 @@ interface BatchRecord {
   created_at: string;
   updated_at: string;
   request: CreateCreativeGenerationBatchParams;
-  brand_dna_context: string[];
   candidates: CandidateRecord[];
   approved_candidate_id?: string;
   approval_timestamp?: string;
@@ -77,15 +60,6 @@ interface BatchStore {
 }
 
 const DEFAULT_STORE: BatchStore = { batches: {} };
-let templateEntryMapCache: Map<string, { title: string; file: string }> | null = null;
-
-function section(title: string, lines: string[]) {
-  return [`${title}:`, ...lines.map((line) => `- ${line}`)].join("\n");
-}
-
-function sectionText(title: string, content: string) {
-  return `${title}:\n${content}`;
-}
 
 function nowIso() {
   return new Date().toISOString();
@@ -103,40 +77,6 @@ async function readStore(): Promise<BatchStore> {
 async function writeStore(store: BatchStore) {
   await mkdir(RUNTIME_DIR, { recursive: true });
   await writeFile(BATCH_STORE_PATH, JSON.stringify(store, null, 2), "utf8");
-}
-
-async function loadTemplateEntryMap() {
-  if (templateEntryMapCache) {
-    return templateEntryMapCache;
-  }
-
-  const raw = await readFile(TEMPLATE_INDEX_PATH, "utf8");
-  const parsed = parse(raw) as { templates?: Array<{ id: string; title: string; file: string }> };
-  const templates = parsed.templates || [];
-  const entryMap = new Map<string, { title: string; file: string }>();
-  for (const item of templates) {
-    entryMap.set(item.id.trim().toLowerCase(), {
-      title: item.title,
-      file: item.file,
-    });
-  }
-  templateEntryMapCache = entryMap;
-  return entryMap;
-}
-
-async function loadTemplatePrompt(templateId: string) {
-  const entryMap = await loadTemplateEntryMap();
-  const entry = entryMap.get(templateId.trim().toLowerCase());
-  if (!entry) {
-    throw new Error(`Unknown template_id: ${templateId}`);
-  }
-  const promptPath = path.join(GEMINI_SKILL_ROOT, entry.file);
-  const prompt = (await readFile(promptPath, "utf8")).trim();
-  return {
-    id: templateId,
-    title: entry.title,
-    prompt,
-  };
 }
 
 function getGeminiClient() {
@@ -316,133 +256,21 @@ function normalizeGeminiError(error: unknown): Error {
   );
 }
 
-async function buildBasePrompt(
-  request: CreateCreativeGenerationBatchParams,
-  mode: CandidateMode,
-  brandDnaContext: string[]
-) {
-  const template = await loadTemplatePrompt(request.template_id);
-  const brief = request.creative_brief;
-  const overlayInstructions =
-    request.overlay_text && request.overlay_text.length > 0
-      ? request.overlay_text.map((line) => `- ${line}`).join("\n")
-      : "- Keep overlay concise and legible";
-
-  const modeRules =
-    mode === "full"
-      ? [
-          "MODE: full creative with text overlay",
-          "TEXT RULES:",
-          "- Keep text short and punchy",
-          "- Max 8 words per line",
-          "- Keep strong contrast and clear hierarchy",
-          overlayInstructions,
-        ]
-      : [
-          "MODE: visual only (strict no text)",
-          "NO_TEXT RULES:",
-          "- No words, letters, logos, glyph-like marks, or pseudo typography",
-          "- Keep clean negative space for external text overlay",
-        ];
-
-  const blocks = [
-    `CONCEPT: ${request.concept}`,
-    request.creative_description
-      ? `CREATIVE_DESCRIPTION: ${request.creative_description}`
-      : "",
-    section("CREATIVE_BRIEF", [
-      `Objective: ${brief.objective}`,
-      `Audience: ${brief.audience}`,
-      `Awareness Stage: ${brief.awareness_stage}`,
-      `Angle: ${brief.angle}`,
-      `Offer: ${brief.offer}`,
-      `Proof Type: ${brief.proof_type}`,
-      `CTA: ${brief.cta}`,
-      `Landing Page: ${brief.landing_page}`,
-    ]),
-    section("CONTEXT", [
-      `Template ID: ${request.template_id}`,
-      `Template Title: ${template.title}`,
-      `Aspect Ratio: ${request.aspect_ratio}`,
-      `Language: ${request.language}`,
-      `Country: ${request.country}`,
-    ]),
-    section("BRAND_DNA", brandDnaContext),
-    sectionText("TEMPLATE_PROMPT_SOURCE", template.prompt),
-    section("NANO_BANANA_PLAYBOOK", NANO_BANANA_PLAYBOOK.workflow),
-    section("PROMPT_STRUCTURE", NANO_BANANA_PLAYBOOK.promptStructure),
-    section("STATIC_BANNER_SCROLL_STOP", STATIC_BANNER_HEURISTICS.scrollStop),
-    section("STATIC_BANNER_RULES", STATIC_BANNER_HEURISTICS.mandatoryRules),
-    section("COMPOSITION", [
-      "Define clear primary subject focus",
-      "Add secondary elements only if they support the main message",
-      "Reserve negative space for conversion-oriented overlays",
-    ]),
-    section("CAMERA_AND_LIGHTING", [
-      "Use deliberate camera angle and focal depth",
-      "Set cinematic but realistic lighting",
-    ]),
-    section("QUALITY", [
-      "High detail, clean edges, no artifact clutter",
-      "Avoid distorted anatomy and malformed objects",
-    ]),
-    section("NEGATIVE_CONSTRAINTS", [
-      "No gibberish text",
-      "No watermark-like marks",
-      "No random brand symbols",
-    ]),
-    sectionText("MODE_RULES", modeRules.join("\n")),
-  ];
-
-  return blocks.filter(Boolean).join("\n\n");
+async function ensureAssetDir() {
+  await mkdir(SESSION_OUTPUT_DIR, { recursive: true });
+  return SESSION_OUTPUT_DIR;
 }
 
-function flattenBrandDna(source: string, payload: unknown) {
-  if (!payload || typeof payload !== "object") {
-    return [] as string[];
+function getReadyPrompt(request: CreateCreativeGenerationBatchParams, mode: CandidateMode) {
+  const prompt = mode === "full" ? request.full_prompt : request.visual_only_prompt;
+  if (!prompt) {
+    throw new Error(
+      mode === "full"
+        ? "full_prompt is required when full_count is greater than 0"
+        : "visual_only_prompt is required when visual_only_count is greater than 0"
+    );
   }
-  const objectPayload = payload as Record<string, unknown>;
-  return Object.entries(objectPayload)
-    .slice(0, 12)
-    .map(([key, value]) => {
-      if (typeof value === "string" || typeof value === "number") {
-        return `${source}.${key}: ${String(value)}`;
-      }
-      if (Array.isArray(value)) {
-        const preview = value
-          .slice(0, 4)
-          .map((item) => String(item))
-          .join(", ");
-        return `${source}.${key}: ${preview}`;
-      }
-      return `${source}.${key}: [structured]`;
-    });
-}
-
-async function loadBrandDnaContext() {
-  const root = path.join(os.homedir(), ".meta-marketing-plugin");
-  const files = [
-    { source: "copy", file: path.join(root, "brand_dna_copy.yaml") },
-    { source: "visual", file: path.join(root, "brand_dna_visual.yaml") },
-  ];
-
-  const context: string[] = [];
-  for (const item of files) {
-    try {
-      const raw = await readFile(item.file, "utf8");
-      const payload = parse(raw);
-      context.push(...flattenBrandDna(item.source, payload));
-    } catch {
-      // Local runtime files are optional at generation schema level.
-    }
-  }
-  return context;
-}
-
-async function ensureAssetDir(batchId: string) {
-  const dir = path.join(ASSET_ROOT, batchId);
-  await mkdir(dir, { recursive: true });
-  return dir;
+  return prompt;
 }
 
 async function generateLane(
@@ -454,12 +282,7 @@ async function generateLane(
     return [];
   }
 
-  const promptOverride =
-    mode === "full" ? batch.request.full_prompt : batch.request.visual_only_prompt;
-  const basePrompt = await buildBasePrompt(batch.request, mode, batch.brand_dna_context);
-  const prompt = promptOverride?.trim()
-    ? `${basePrompt}\n\nUSER_PROMPT_OVERRIDE:\n${promptOverride.trim()}`
-    : basePrompt;
+  const prompt = getReadyPrompt(batch.request, mode);
   const ai = getGeminiClient();
   const model = getGeminiImageModel();
   const generated = await generateImageBytesBatch({
@@ -470,14 +293,14 @@ async function generateLane(
     aspectRatio: batch.request.aspect_ratio,
     referenceImages: batch.request.reference_images,
   });
-  const assetDir = await ensureAssetDir(batch.batch_id);
+  const assetDir = await ensureAssetDir();
 
   return Promise.all(
     Array.from({ length: count }, async (_, index) => {
       const candidateId = `${mode === "full" ? "full" : "visual"}_c${String(
         index + 1
       ).padStart(2, "0")}`;
-      const imagePath = path.join(assetDir, `${candidateId}.png`);
+      const imagePath = path.join(assetDir, `${batch.batch_id}_${candidateId}.png`);
       const imageBytes = generated[index];
 
       if (!imageBytes) {
@@ -540,6 +363,14 @@ function reviewPayload(batch: BatchRecord) {
     batch_id: batch.batch_id,
     state: batch.state,
     generation_mode: batch.generation_mode,
+    output_folder: SESSION_OUTPUT_DIR,
+    all_image_paths: batch.candidates
+      .map((candidate) => candidate.image_path)
+      .filter((imagePath): imagePath is string => Boolean(imagePath)),
+    all_exact_prompts: batch.candidates.map((candidate) => ({
+      candidate_id: candidate.candidate_id,
+      exact_prompt: candidate.final_prompt,
+    })),
     approved_candidate_id: batch.approved_candidate_id,
     approval_timestamp: batch.approval_timestamp,
     final_overlay_image_path: batch.final_overlay_image_path,
@@ -567,7 +398,6 @@ export async function createCreativeGenerationBatch(
     throw new Error("full_count + visual_only_count must be greater than 0");
   }
 
-  const brandDnaContext = await loadBrandDnaContext();
   const batchId = `batch_${randomUUID()}`;
   const record: BatchRecord = {
     batch_id: batchId,
@@ -580,7 +410,6 @@ export async function createCreativeGenerationBatch(
       full_count: fullCount,
       visual_only_count: visualOnlyCount,
     },
-    brand_dna_context: brandDnaContext,
     candidates: [],
   };
 
@@ -724,12 +553,12 @@ export async function editCandidatePrompt(
     throw new Error("Gemini did not return image bytes for prompt edit rerun");
   }
 
-  const assetDir = await ensureAssetDir(batch.batch_id);
+  const assetDir = await ensureAssetDir();
   const nextIndex = batch.candidates.length + 1;
   const childId = `${candidate.mode === "full" ? "full" : "visual"}_c${String(
     nextIndex
   ).padStart(2, "0")}`;
-  const imagePath = path.join(assetDir, `${childId}.png`);
+  const imagePath = path.join(assetDir, `${batch.batch_id}_${childId}.png`);
   await writeFile(imagePath, Buffer.from(imageBytes, "base64"));
 
   const child: CandidateRecord = {

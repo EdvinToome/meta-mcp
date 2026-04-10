@@ -1075,18 +1075,19 @@ const CreativeBriefSchema = z.object({
 });
 
 export const CreateCreativeGenerationBatchSchema = z.object({
-  concept: z.string().min(1).describe("Core creative idea to generate"),
+  concept: z.string().optional().describe("Optional audit label for the batch"),
   template_id: z
     .string()
     .min(1)
-    .describe("Local template id from gemini-creative-builder library"),
-  creative_brief: CreativeBriefSchema.describe(
-    "Structured brief used to compile deterministic prompts"
+    .optional()
+    .describe("Optional template id used by the prompt builder"),
+  creative_brief: CreativeBriefSchema.optional().describe(
+    "Optional structured brief for audit metadata"
   ),
   creative_description: z
     .string()
     .optional()
-    .describe("Short description of what the visual should communicate"),
+    .describe("Optional audit description of what the visual should communicate"),
   aspect_ratio: z
     .enum(["1:1", "4:5", "9:16", "16:9"])
     .optional()
@@ -1124,19 +1125,21 @@ export const CreateCreativeGenerationBatchSchema = z.object({
   overlay_text: z
     .array(z.string().min(1))
     .optional()
-    .describe("Optional short text overlays for full mode"),
+    .describe("Optional audit list of text overlays already included in the prompt"),
   reference_images: z
     .array(z.string().min(1))
     .min(1)
     .describe("Local paths or URLs for worksheet/product reference images"),
   full_prompt: z
     .string()
+    .min(1)
     .optional()
-    .describe("Fully composed full-mode prompt produced by subagent planning"),
+    .describe("Complete full-mode prompt sent directly to Gemini"),
   visual_only_prompt: z
     .string()
+    .min(1)
     .optional()
-    .describe("Fully composed visual-only prompt produced by subagent planning"),
+    .describe("Complete visual-only prompt sent directly to Gemini"),
   plan_notes: z
     .string()
     .optional()
