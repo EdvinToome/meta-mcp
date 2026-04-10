@@ -73,6 +73,16 @@ const claudeMetaRoot = path.join(projectRoot, ".claude", "meta-marketing-plugin"
 const claudeRoot = path.join(projectRoot, ".claude");
 const skillsRoot = path.join(claudeRoot, "skills");
 const agentsRoot = path.join(claudeMetaRoot, "agents");
+const claudeMarketplaceAgentsRoot = path.join(
+  os.homedir(),
+  ".claude",
+  "plugins",
+  "marketplaces",
+  "meta-marketing-plugin-marketplace",
+  "agents",
+  "claude",
+  "agents"
+);
 const claudePath = path.join(projectRoot, "CLAUDE.md");
 const claudeConfigPath = getClaudeConfigPath();
 const projectMetaEnvPath = path.join(claudeMetaRoot, "meta.env");
@@ -221,6 +231,8 @@ function ensureGitignoreEntries() {
     "meta-marketing-plugin/build/",
     "meta-marketing-plugin/node_modules/",
     "meta-marketing-plugin/agents/ad-copy-writer.md",
+    "meta-marketing-plugin/agents/gemini-prompt-builder.md",
+    "meta-marketing-plugin/agents/gemini-image-writer.md",
   ];
   const deprecatedEntries = [
     "commands/meta-ads-builder.md",
@@ -307,6 +319,11 @@ function installClaudeAssets() {
   removePath(path.join(claudeRoot, "agents"));
 
   copyDirectory(path.join(claudeSourcesDir, "agents"), agentsRoot, true);
+  copyDirectory(
+    path.join(claudeSourcesDir, "agents"),
+    claudeMarketplaceAgentsRoot,
+    true
+  );
   return { brandDnaFilesState, brandDnaMigrationState };
 }
 
@@ -408,6 +425,8 @@ async function main() {
       "- `.claude/meta-marketing-plugin/brand_dna_copy.yaml`",
       "- `.claude/meta-marketing-plugin/brand_dna_visual.yaml`",
       "- `.claude/meta-marketing-plugin/agents/ad-copy-writer.md`",
+      "- `.claude/meta-marketing-plugin/agents/gemini-prompt-builder.md`",
+      "- `.claude/meta-marketing-plugin/agents/gemini-image-writer.md`",
       "- `.claude/skills/meta-ads-builder/SKILL.md`",
     ]
   );
@@ -420,6 +439,7 @@ async function main() {
   console.log(`Claude bundle: ${claudeMetaRoot}`);
   console.log(`Skills: ${skillsRoot}`);
   console.log(`Subagent: ${path.join(agentsRoot, "ad-copy-writer.md")}`);
+  console.log(`Marketplace agents: ${claudeMarketplaceAgentsRoot}`);
   console.log(`Claude MCP config: ${claudeConfigPath}`);
   console.log(`Brand DNA copy: ${brandDnaState.brandDnaFilesState.copyPath}`);
   console.log(`Brand DNA visual: ${brandDnaState.brandDnaFilesState.visualPath}`);
