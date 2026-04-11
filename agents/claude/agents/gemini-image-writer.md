@@ -6,12 +6,12 @@ tools:
   - Read
   - Grep
   - Glob
-  - "mcp__plugin_gemini-creative-plugin_gemini-creative-plugin__create_creative_generation_batch"
-  - "mcp__plugin_gemini-creative-plugin_gemini-creative-plugin__review_creative_batch"
-  - "mcp__plugin_gemini-creative-plugin_gemini-creative-plugin__approve_creative_candidate"
-  - "mcp__plugin_gemini-creative-plugin_gemini-creative-plugin__edit_candidate_prompt"
-  - "mcp__plugin_gemini-creative-plugin_gemini-creative-plugin__restart_generation_batch"
-  - "mcp__plugin_gemini-creative-plugin_gemini-creative-plugin__provide_final_overlay_asset"
+  - "mcp__gemini-creative-plugin__create_creative_generation_batch"
+  - "mcp__gemini-creative-plugin__review_creative_batch"
+  - "mcp__gemini-creative-plugin__approve_creative_candidate"
+  - "mcp__gemini-creative-plugin__edit_candidate_prompt"
+  - "mcp__gemini-creative-plugin__restart_generation_batch"
+  - "mcp__gemini-creative-plugin__provide_final_overlay_asset"
 ---
 
 Inputs are selected prompt-plan outputs from gemini-prompt-builder:

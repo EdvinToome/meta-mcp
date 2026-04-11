@@ -43,4 +43,17 @@ async function main() {
   }
 }
 
-main();
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled rejection:", reason);
+  process.exit(1);
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught exception:", error);
+  process.exit(1);
+});
+
+main().catch((error) => {
+  console.error("Fatal error in main:", error);
+  process.exit(1);
+});

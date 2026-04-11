@@ -8,7 +8,8 @@ import type {
   RestartGenerationBatchParams,
 } from "../types/mcp-tools.js";
 
-const RUNTIME_DIR = path.join(os.homedir(), ".meta-marketing-plugin");
+const RUNTIME_DIR =
+  process.env.PLUGIN_RUNTIME_DIR ?? path.join(os.homedir(), ".meta-marketing-plugin");
 const BATCH_STORE_PATH = path.join(
   RUNTIME_DIR,
   "gemini-creative-batches.local.json"
@@ -199,7 +200,8 @@ async function generateImageBytesBatch(params: {
   referenceImages?: string[];
 }) {
   const referenceParts = await loadReferenceImageParts(params.referenceImages);
-  const jobs = Array.from({ length: params.count }, async () => {
+  const results: Array<string | undefined> = [];
+  for (let i = 0; i < params.count; i++) {
     const response = await withGeminiRetry(() =>
       params.ai.models.generateContent({
         model: params.model,
@@ -212,10 +214,9 @@ async function generateImageBytesBatch(params: {
         },
       })
     );
-    return extractInlineImageBytes(response);
-  });
-
-  return Promise.all(jobs);
+    results.push(extractInlineImageBytes(response));
+  }
+  return results;
 }
 
 function normalizeGeminiError(error: unknown): Error {
@@ -336,10 +337,8 @@ async function runBatchGeneration(batch: BatchRecord) {
   let fullCandidates: CandidateRecord[] = [];
   let visualCandidates: CandidateRecord[] = [];
   try {
-    [fullCandidates, visualCandidates] = await Promise.all([
-      generateLane(batch, "full", batch.request.full_count ?? 0),
-      generateLane(batch, "visual_only", batch.request.visual_only_count ?? 0),
-    ]);
+    fullCandidates = await generateLane(batch, "full", batch.request.full_count ?? 0);
+    visualCandidates = await generateLane(batch, "visual_only", batch.request.visual_only_count ?? 0);
   } catch (error) {
     throw normalizeGeminiError(error);
   }

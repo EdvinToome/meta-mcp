@@ -6,7 +6,7 @@ tools:
   - Read
   - Grep
   - Glob
-  - "mcp__plugin_meta-marketing-plugin_meta-marketing-plugin__extract_target_page_facts"
+  - "mcp__meta-marketing-plugin__extract_target_page_facts"
 ---
 
 Inputs are `target_url`, `creative_description`, and `site_profile`.
@@ -19,7 +19,7 @@ Read strictly only this:
 
 Do not read site-profiles.local.json or other skill files.
 Use provided `site_profile` object directly.
-Call `mcp__plugin_meta-marketing-plugin_meta-marketing-plugin__extract_target_page_facts` with `target_url`.
+Call `mcp__meta-marketing-plugin__extract_target_page_facts` with `target_url`.
 Use tool output keywords as `target_url` context.
 Keep context lightweight (keywords only, no long page dumps).
 Do not use Bash/curl for target_url fetching.

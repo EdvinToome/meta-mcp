@@ -73,15 +73,25 @@ const claudeMetaRoot = path.join(projectRoot, ".claude", "meta-marketing-plugin"
 const claudeRoot = path.join(projectRoot, ".claude");
 const skillsRoot = path.join(claudeRoot, "skills");
 const agentsRoot = path.join(claudeMetaRoot, "agents");
-const claudeMarketplaceAgentsRoot = path.join(
+const claudeMarketplaceRoot = path.join(
   os.homedir(),
   ".claude",
   "plugins",
   "marketplaces",
-  "meta-marketing-plugin-marketplace",
+  "meta-marketing-plugin-marketplace"
+);
+const claudeMarketplaceAgentsRoot = path.join(
+  claudeMarketplaceRoot,
   "agents",
   "claude",
   "agents"
+);
+const claudeMarketplaceMcpTemplatePath = path.join(
+  claudeMarketplaceRoot,
+  "meta-mcp",
+  "mcp",
+  "claude",
+  "mcp.json"
 );
 const claudePath = path.join(projectRoot, "CLAUDE.md");
 const claudeConfigPath = getClaudeConfigPath();
@@ -169,20 +179,33 @@ function writeGlobalClaudeConfig(metaAccessToken) {
     payload.mcpServers?.["gemini-creative-plugin"] || {};
   const existingEnv = { ...(existingServer.env || {}) };
   const existingGeminiEnv = { ...(existingGeminiServer.env || {}) };
-  delete existingEnv.META_ACCESS_TOKEN;
-  delete existingGeminiEnv.META_ACCESS_TOKEN;
+  const projectEnv = parseEnvFile(projectMetaEnvPath);
+  const mergedMetaEnv = {
+    ...existingEnv,
+    ...projectEnv,
+  };
+  const mergedGeminiEnv = {
+    ...existingGeminiEnv,
+    ...projectEnv,
+  };
+  if (metaAccessToken) {
+    mergedMetaEnv.META_ACCESS_TOKEN = metaAccessToken;
+    mergedGeminiEnv.META_ACCESS_TOKEN = metaAccessToken;
+  }
 
   payload.mcpServers ||= {};
   payload.mcpServers["meta-marketing-plugin"] = {
     command: "node",
     args: [path.join(claudeMetaRoot, "scripts", "launch-meta-server.js")],
-    ...(Object.keys(existingEnv).length > 0 ? { env: existingEnv } : {}),
+    cwd: claudeMetaRoot,
+    ...(Object.keys(mergedMetaEnv).length > 0 ? { env: mergedMetaEnv } : {}),
   };
   payload.mcpServers["gemini-creative-plugin"] = {
     command: "node",
     args: [path.join(claudeMetaRoot, "scripts", "launch-gemini-server.js")],
-    ...(Object.keys(existingGeminiEnv).length > 0
-      ? { env: existingGeminiEnv }
+    cwd: claudeMetaRoot,
+    ...(Object.keys(mergedGeminiEnv).length > 0
+      ? { env: mergedGeminiEnv }
       : {}),
   };
   if (payload.mcpServers.meta) {
@@ -201,6 +224,29 @@ function readEnvValue(source, key) {
     }
   }
   return "";
+}
+
+function parseEnvFile(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return {};
+  }
+  const source = fs.readFileSync(filePath, "utf8");
+  const parsed = {};
+  for (const line of source.split("\n")) {
+    if (!line || line.startsWith("#")) {
+      continue;
+    }
+    const idx = line.indexOf("=");
+    if (idx < 1) {
+      continue;
+    }
+    const key = line.slice(0, idx).trim();
+    const value = line.slice(idx + 1).trim().replace(/^"|"$/g, "");
+    if (key) {
+      parsed[key] = value;
+    }
+  }
+  return parsed;
 }
 
 function writeProjectMetaEnv(metaAccessToken) {
@@ -322,6 +368,12 @@ function installClaudeAssets() {
   copyDirectory(
     path.join(claudeSourcesDir, "agents"),
     claudeMarketplaceAgentsRoot,
+    true
+  );
+  copyFile(path.join(repoRoot, ".mcp.json"), path.join(claudeMarketplaceRoot, ".mcp.json"), true);
+  copyFile(
+    path.join(mcpClaudeDir, "mcp.json"),
+    claudeMarketplaceMcpTemplatePath,
     true
   );
   return { brandDnaFilesState, brandDnaMigrationState };

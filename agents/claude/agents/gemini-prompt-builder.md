@@ -6,7 +6,7 @@ tools:
   - Read
   - Grep
   - Glob
-  - "mcp__plugin_meta-marketing-plugin_meta-marketing-plugin__extract_target_page_facts"
+  - "mcp__meta-marketing-plugin__extract_target_page_facts"
 ---
 
 Inputs are:
