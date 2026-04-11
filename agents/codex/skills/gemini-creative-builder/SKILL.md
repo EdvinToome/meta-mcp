@@ -1,61 +1,74 @@
 ---
 name: gemini-creative-builder
-description: Orchestrate prompt planning, generation, review, and approval for Gemini ad creatives.
+description: Orchestrate prompt planning and Gemini image generation for ad creatives.
 ---
 
-Use this when no final image exists and you need prompt planning + generation + approval.
+Use this when no final image exists and you need prompt planning + generation.
 
 Structure (progressive disclosure):
 - `SKILL.md` for workflow rules
-- `gemini-prompt-builder` skill for prompt planning
-- `references/` + `assets/` for generation constraints and template library
+- `gemini-prompt-builder` subagent for prompt planning
 
 Runtime rules:
 - Use Gemini MCP tools only for image generation flow.
 - No fallback provider.
 - Stop on `gemini_unavailable`, `gemini_auth_failed`, `gemini_quota_exceeded`.
-- Do not query Notion at runtime.
-- `create_creative_generation_batch.generation_mode` must be `interactive` or `deferred_batch` only.
-- Do not pass `full_only` or `visual_only` as `generation_mode`.
+- Gemini generation tools are:
+  - `health_check`
+  - `create_image`
+- `create_image.generation_mode` must be `default` or `async`. Async mode delays generation and returns result in 2-15 min.
+- `create_image.resolution` must be `1K`, `2K`, or `4K`.
 
 Default behavior:
-- Use two-phase flow:
-  1) prompt planning
-  2) generation execution
+- Use three-phase flow:
+  1) template selection
+  2) prompt planning
+  3) generation execution
+  
+Inputs:
+1. Landing page URL                                                                                           
+2. Offer being promoted                                                                                                               
+3. Audience and country/language                                                                                                      
+4. Campaign objective such as leads, purchases, traffic, awareness                                                                    
+5. Awareness stage such as cold, warm, retargeting                                                                                    
+6. Optional primary angle you want to test                                                                                                     
+7. Optional CTA text                                                                                                                           
+8. Optional proof type such as review, stat, authority, product demo, before/after                                                             
+9. Optional reference images if any: product screenshots, brand assets, prior creatives, photos                                                                                            
+10. Aspect ratio: for example 1:1, 4:5, 9:16, or 1.91:1   
 
 Execution sequence:
-1. Always run the `gemini-prompt-builder` subagent before planning or generation. Do not replace this with local planning.
-2. Return the subagent plan:
-   - `selected_template_id`
+1. Read:
+   - `~/.meta-marketing-plugin/brand_dna_copy.yaml`
+   - `~/.meta-marketing-plugin/brand_dna_visual.yaml`
+   - `agents/codex/skills/gemini-prompt-builder/assets/template-library/index.yaml`
+2. Call `extract_target_page_facts` for `target_url`.
+3. Select TOP 3 templates based on initial user input. Stop and ask user to select the template.
+4. Spawn the `gemini-prompt-builder` subagent to create gemini prompts. Do not replace this with local planning.
+5. Return the subagent plan:
    - `creative_brief`
-   - `required_reference_images`
    - `base_prompt_full`
    - `base_prompt_visual_only`
-   - `variants[]` with `hook`, `proof_style`, `layout_tension`, `full_prompt`, `visual_only_prompt`, and `recommended_attempts`
-3. Ask user which variants to execute and attempts per variant.
-4. For each selected variant call `create_creative_generation_batch` with:
-   - `reference_images` (required)
-   - `full_prompt = variant.full_prompt`
-   - `visual_only_prompt = variant.visual_only_prompt`
-   - `generation_mode` set to `interactive` by default (use `deferred_batch` only if explicitly requested)
-   - selected counts:
-     - full-only request: `full_count > 0`, `visual_only_count = 0`
-     - visual-only request: `full_count = 0`, `visual_only_count > 0`
-     - both request: `full_count > 0`, `visual_only_count > 0`
-   - optional audit metadata: `template_id`, `creative_brief`, `concept`, `creative_description`, `overlay_text`, `plan_notes`
-5. Call `review_creative_batch`.
-6. Present options: `select`, `edit`, `start over`, `retry`.
-7. Call `approve_creative_candidate`.
-8. If approved mode is visual-only: gather final overlay path and call `provide_final_overlay_asset`.
+   - `variants[]` with `hook`, `proof_style`, `layout_tension`, `full_prompt`, `visual_only_prompt` `reference_images_to_use`, and `recommended_attempts`
+6. Show user brief version of each variant and ask 
+   - which variants to execute
+   - attempts per variant
+   - use recommended reference images or override 
+   - visual_only and full prompt attempts
+   - resolution
+   - aspect ratio
+   - generation mode
+7. Run `health_check` once before the first generation call.
+8. For each selected variant, call `create_image` per prompt type needed:
+   - Full mode call:
+     - `prompt = variant.full_prompt`
+   - Visual-only mode call:
+     - `prompt = variant.visual_only_prompt`
+   - Shared params for every call:
+     - `count` from attempts (or explicit user override)
+     - `aspect_ratio` from user choice (default `1:1`)
+     - `attachments` from required reference images when needed; otherwise `[]`
+     - `generation_mode` default `default` (use `async` only if user asks)
+     - `resolution` default `1K` (use `2K`/`4K` when requested)
+9. Return generated images folder path, the images themselves and variant used for their generation.
 
-Return contract:
-- selected template id + reason
-- selected variant ids + attempts
-- generation_mode + counts
-- exact prompts used
-- batch id + approved candidate id
-- final image path for publish handoff
-
-Important:
-- Keep landing page in `creative_brief` metadata.
-- Prompt text should focus on visual instructions only.

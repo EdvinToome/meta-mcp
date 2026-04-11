@@ -11,7 +11,7 @@
   "scripts": {
     "build": "tsup --config meta-mcp/tsup.config.ts",
     "dev": "tsx meta-mcp/src/index.ts",
-    "dev:gemini": "tsx meta-mcp/src/gemini-index.ts",
+    "dev:gemini": "tsx gemini-mcp/src/gemini-index.ts",
     "dev:vercel": "vercel dev",
     "test": "jest --config meta-mcp/jest.config.js",
     "test:tools": "tsx meta-mcp/test-tools.js",

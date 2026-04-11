@@ -1,9 +1,9 @@
 ---
 name: gemini-creative-builder
-description: Orchestrate prompt planning, generation, review, and approval for Gemini ad creatives.
+description: Orchestrate prompt planning and Gemini image generation for ad creatives.
 ---
 
-Use this when no final image exists and you need prompt planning + generation + approval.
+Use this when no final image exists and you need prompt planning + generation.
 
 Structure (progressive disclosure):
 - `SKILL.md` for workflow rules
@@ -15,8 +15,11 @@ Runtime rules:
 - No fallback provider.
 - Stop on `gemini_unavailable`, `gemini_auth_failed`, `gemini_quota_exceeded`.
 - Do not query Notion at runtime.
-- `create_creative_generation_batch.generation_mode` must be `interactive` or `deferred_batch` only.
-- Do not pass `full_only` or `visual_only` as `generation_mode`.
+- Gemini generation tools are:
+  - `health_check`
+  - `create_image`
+- `create_image.generation_mode` must be `default` or `async`.
+- `create_image.resolution` must be `1K`, `2K`, or `4K`.
 
 Default behavior:
 - Use two-phase flow:
@@ -33,28 +36,26 @@ Execution sequence:
    - `base_prompt_visual_only`
    - `variants[]` with `hook`, `proof_style`, `layout_tension`, `full_prompt`, `visual_only_prompt`, and `recommended_attempts`
 3. Ask user which variants to execute and attempts per variant.
-4. For each selected variant call `create_creative_generation_batch` with:
-   - `reference_images` (required)
-   - `full_prompt = variant.full_prompt`
-   - `visual_only_prompt = variant.visual_only_prompt`
-   - `generation_mode` set to `interactive` by default (use `deferred_batch` only if explicitly requested)
-   - selected counts:
-     - full-only request: `full_count > 0`, `visual_only_count = 0`
-     - visual-only request: `full_count = 0`, `visual_only_count > 0`
-     - both request: `full_count > 0`, `visual_only_count > 0`
-   - optional audit metadata: `template_id`, `creative_brief`, `concept`, `creative_description`, `overlay_text`, `plan_notes`
-5. Call `review_creative_batch`.
-6. Present options: `select`, `edit`, `start over`, `retry`.
-7. Call `approve_creative_candidate`.
-8. If approved mode is visual-only: gather final overlay path and call `provide_final_overlay_asset`.
+4. Run `health_check` once before the first generation call.
+5. For each selected variant, call `create_image` per prompt type needed:
+   - Full mode call:
+     - `prompt = variant.full_prompt`
+   - Visual-only mode call:
+     - `prompt = variant.visual_only_prompt`
+   - Shared params for every call:
+     - `count` from attempts (or explicit user override)
+     - `aspect_ratio` from user choice (default `1:1`)
+     - `attachments` from required reference images when needed; otherwise `[]`
+     - `generation_mode` default `default` (use `async` only if user asks)
+     - `resolution` default `1K` (use `2K`/`4K` when requested)
+6. Present generated image paths and exact prompts for user selection.
 
 Return contract:
 - selected template id + reason
 - selected variant ids + attempts
-- generation_mode + counts
-- exact prompts used
-- batch id + approved candidate id
-- final image path for publish handoff
+- generation_mode + resolution + aspect_ratio
+- exact prompts used per `create_image` call
+- output folders + image paths for publish handoff
 
 Important:
 - Keep landing page in `creative_brief` metadata.

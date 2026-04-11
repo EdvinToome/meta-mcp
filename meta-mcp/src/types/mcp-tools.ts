@@ -1057,143 +1057,38 @@ export const RunStructuredAdBuildSchema = z.object({
   ),
 });
 
-const CreativeBriefSchema = z.object({
-  objective: z.string().min(1).describe("Campaign objective for this creative"),
-  audience: z.string().min(1).describe("Who this creative is for"),
-  awareness_stage: z
-    .string()
+export const CreateImageSchema = z.object({
+  prompt: z.string().min(1).describe("Prompt text for Gemini image generation"),
+  count: z
+    .number()
+    .int()
     .min(1)
-    .describe("Audience awareness stage (cold, warm, hot, etc.)"),
-  angle: z.string().min(1).describe("Primary messaging angle"),
-  offer: z.string().min(1).describe("Offer being promoted"),
-  proof_type: z
-    .string()
-    .min(1)
-    .describe("Proof mechanism (review, stats, authority, etc.)"),
-  cta: z.string().min(1).describe("Exact call to action"),
-  landing_page: z.string().url().describe("Destination URL for this creative"),
-});
-
-export const CreateCreativeGenerationBatchSchema = z.object({
-  concept: z.string().optional().describe("Optional audit label for the batch"),
-  template_id: z
-    .string()
-    .min(1)
+    .max(8)
     .optional()
-    .describe("Optional template id used by the prompt builder"),
-  creative_brief: CreativeBriefSchema.optional().describe(
-    "Optional structured brief for audit metadata"
-  ),
-  creative_description: z
-    .string()
-    .optional()
-    .describe("Optional audit description of what the visual should communicate"),
+    .default(1)
+    .describe("Number of images to generate"),
   aspect_ratio: z
     .enum(["1:1", "4:5", "9:16", "16:9"])
     .optional()
     .default("1:1")
-    .describe("Target aspect ratio for generated candidates"),
-  full_count: z
-    .number()
-    .int()
-    .min(0)
-    .optional()
-    .default(1)
-    .describe("How many full (with text) candidates to generate"),
-  visual_only_count: z
-    .number()
-    .int()
-    .min(0)
-    .optional()
-    .default(0)
-    .describe("How many visual-only (no text) candidates to generate"),
-  generation_mode: z
-    .enum(["interactive", "deferred_batch"])
-    .optional()
-    .default("interactive")
-    .describe("Generation execution mode"),
-  language: z
-    .string()
-    .optional()
-    .default("en")
-    .describe("Language code used for prompt localization"),
-  country: z
-    .string()
-    .optional()
-    .default("US")
-    .describe("Country code used for localization context"),
-  overlay_text: z
+    .describe("Aspect ratio for generated images"),
+  attachments: z
     .array(z.string().min(1))
     .optional()
-    .describe("Optional audit list of text overlays already included in the prompt"),
-  reference_images: z
-    .array(z.string().min(1))
-    .min(1)
-    .describe("Local paths or URLs for worksheet/product reference images"),
-  full_prompt: z
-    .string()
-    .min(1)
-    .optional()
-    .describe("Complete full-mode prompt sent directly to Gemini"),
-  visual_only_prompt: z
-    .string()
-    .min(1)
-    .optional()
-    .describe("Complete visual-only prompt sent directly to Gemini"),
-  plan_notes: z
-    .string()
-    .optional()
-    .describe("Optional planner notes for auditability"),
-});
-
-export const GenerationBatchIdSchema = z.object({
-  batch_id: z.string().min(1).describe("Generation batch ID"),
-});
-
-export const ApproveCreativeCandidateSchema = z.object({
-  batch_id: z.string().min(1).describe("Generation batch ID"),
-  candidate_id: z.string().min(1).describe("Candidate ID to approve"),
-});
-
-export const ProvideFinalOverlayAssetSchema = z.object({
-  batch_id: z.string().min(1).describe("Generation batch ID"),
-  candidate_id: z.string().min(1).describe("Approved visual-only candidate ID"),
-  final_image_path: z
-    .string()
-    .min(1)
-    .describe("Absolute local path to final manually overlaid image"),
-});
-
-export const EditCandidatePromptSchema = z.object({
-  batch_id: z.string().min(1).describe("Generation batch ID"),
-  candidate_id: z.string().min(1).describe("Candidate ID to branch from"),
-  prompt_delta: z
-    .string()
-    .min(1)
-    .describe("Prompt adjustment instructions to apply"),
-});
-
-export const RestartGenerationBatchSchema = z.object({
-  batch_id: z.string().min(1).describe("Generation batch ID"),
-  concept: z
-    .string()
-    .optional()
-    .describe("Optional replacement concept for restart"),
-  template_id: z
-    .string()
-    .optional()
-    .describe("Optional replacement template id"),
-  full_count: z.number().int().min(0).optional().describe("Replacement full count"),
-  visual_only_count: z
-    .number()
-    .int()
-    .min(0)
-    .optional()
-    .describe("Replacement visual-only count"),
+    .default([])
+    .describe("Local absolute paths or URLs of reference images"),
   generation_mode: z
-    .enum(["interactive", "deferred_batch"])
+    .enum(["default", "async"])
     .optional()
-    .describe("Replacement generation mode"),
+    .default("default")
+    .describe(
+      "Generation mode: default for standard tier, async for service_tier flex"
+    ),
+  resolution: z
+    .enum(["1K", "2K", "4K"])
+    .optional()
+    .default("1K")
+    .describe("Target image resolution"),
 });
 export const PreviewAdSchema = z.object({
   creative_id: z.string().describe("Creative ID to preview"),
@@ -1422,20 +1317,7 @@ export type ListCreativesParams = z.infer<typeof ListCreativesSchema>;
 export type CreateAdCreativeParams = z.infer<typeof CreateAdCreativeSchema>;
 export type StructuredAdBuildItemParams = z.infer<typeof StructuredAdBuildItemSchema>;
 export type RunStructuredAdBuildParams = z.infer<typeof RunStructuredAdBuildSchema>;
-export type CreateCreativeGenerationBatchParams = z.infer<
-  typeof CreateCreativeGenerationBatchSchema
->;
-export type GenerationBatchIdParams = z.infer<typeof GenerationBatchIdSchema>;
-export type ApproveCreativeCandidateParams = z.infer<
-  typeof ApproveCreativeCandidateSchema
->;
-export type ProvideFinalOverlayAssetParams = z.infer<
-  typeof ProvideFinalOverlayAssetSchema
->;
-export type EditCandidatePromptParams = z.infer<typeof EditCandidatePromptSchema>;
-export type RestartGenerationBatchParams = z.infer<
-  typeof RestartGenerationBatchSchema
->;
+export type CreateImageParams = z.infer<typeof CreateImageSchema>;
 export type PreviewAdParams = z.infer<typeof PreviewAdSchema>;
 export type GenerateAuthUrlParams = z.infer<typeof GenerateAuthUrlSchema>;
 export type ExchangeCodeParams = z.infer<typeof ExchangeCodeSchema>;

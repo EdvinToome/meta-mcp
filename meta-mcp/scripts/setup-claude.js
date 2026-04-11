@@ -278,7 +278,6 @@ function ensureGitignoreEntries() {
     "meta-marketing-plugin/node_modules/",
     "meta-marketing-plugin/agents/ad-copy-writer.md",
     "meta-marketing-plugin/agents/gemini-prompt-builder.md",
-    "meta-marketing-plugin/agents/gemini-image-writer.md",
   ];
   const deprecatedEntries = [
     "commands/meta-ads-builder.md",
@@ -478,7 +477,6 @@ async function main() {
       "- `.claude/meta-marketing-plugin/brand_dna_visual.yaml`",
       "- `.claude/meta-marketing-plugin/agents/ad-copy-writer.md`",
       "- `.claude/meta-marketing-plugin/agents/gemini-prompt-builder.md`",
-      "- `.claude/meta-marketing-plugin/agents/gemini-image-writer.md`",
       "- `.claude/skills/meta-ads-builder/SKILL.md`",
     ]
   );

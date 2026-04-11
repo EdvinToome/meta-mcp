@@ -15,10 +15,6 @@ Workflow:
    - campaign-level: budget, status, CTA, countries, page/pixel identity
    - creative-level: image, `target_url`, `creative_description`
    - If `image_path` or `image_hash` is provided, continue directly to publish.
-   - If image is missing:
-     - first delegate to subagent `gemini-prompt-builder` for prompt plan + variant matrix
-     - then let operator choose variants and attempts
-     - then delegate to subagent `gemini-image-writer` for generation execution
    - Do not call publish flow before explicit candidate approval.
 3. Build campaign, ad set and ad names with this required format:
    - `Brand | Country | Date | Description`
@@ -57,23 +53,6 @@ Workflow:
    - English translation of `headline` and `primary_text`
    - next operator actions
 
-Gemini subagent contract:
-- Prompt builder (`gemini-prompt-builder`) output:
-  - `selected_template_id`
-  - `creative_brief`
-  - `required_reference_images`
-  - `base_prompt_full`
-  - `base_prompt_visual_only`
-  - `variants[]` with `hook`, `proof_style`, `layout_tension`, `full_prompt`, `visual_only_prompt`, and recommended attempts
-- Generation executor (`gemini-image-writer`) path per selected variant:
-  - call `create_creative_generation_batch` with required:
-    - `reference_images`
-    - `full_prompt = variant.full_prompt`
-    - `visual_only_prompt = variant.visual_only_prompt`
-    - optional audit metadata when present
-  - `review_creative_batch`
-  - `approve_creative_candidate`
-  - `provide_final_overlay_asset` when approved candidate is visual-only
 
 Rules:
 - Use Meta MCP tools only.
