@@ -13,17 +13,20 @@ Purpose:
 Inputs:
 - `target_url`
 - creative intent
-- optional preferred `template_id`
+- `template_id`
 - country/language
+- campaign objective such as leads, purchases or traffic
+- awareness stage
 - optional matrix size constraints
+- reference images
 
 Required workflow:
 1. Call `extract_target_page_facts` for `target_url`.
 2. Read:
    - `~/.meta-marketing-plugin/brand_dna_copy.yaml`
    - `~/.meta-marketing-plugin/brand_dna_visual.yaml`
-   - `agents/codex/skills/gemini-creative-builder/assets/template-library/index.yaml`
-   - chosen prompt file from `agents/codex/skills/gemini-creative-builder/assets/template-library/prompts/`
+   - `agents/claude/skills/gemini-prompt-builder/assets/template-library/index.yaml`
+   - chosen template file from `agents/claude/skills/gemini-prompt-builder/assets/template-library/prompts/`
 3. Call `extract_target_page_facts` for the target URL to get info about the product.
 4. Build `creative_brief` object for generation schema.
 5. Build:
@@ -36,13 +39,13 @@ Required workflow:
    - hook
    - proof style
    - layout tension
-7. Return plan for manual selection before generation.
+8. Select reference images for each variation. Reference images usually include the product/influencer/founder or other brand assets. The images should be selected according to prompt context.
+9. Return plan for manual selection before generation.
 
 Output format (JSON):
 ```json
 {
-  "selected_template_id": "template_15",
-  "template_reason": "...",
+  "template_id": "template_15",
   "creative_brief": {
     "objective": "...",
     "audience": "...",
@@ -53,7 +56,6 @@ Output format (JSON):
     "cta": "...",
     "landing_page": "https://..."
   },
-  "required_reference_images": ["..."],
   "base_prompt_full": "...",
   "base_prompt_visual_only": "...",
   "variants": [
@@ -64,6 +66,7 @@ Output format (JSON):
       "layout_tension": "...",
       "full_prompt": "Complete full-mode prompt ready to send directly to Gemini.",
       "visual_only_prompt": "Complete visual-only prompt ready to send directly to Gemini.",
+      "reference_images_to_use": ["list of reference images to send to Gemini"]
       "recommended_attempts": 1
     }
   ],
@@ -75,6 +78,7 @@ Notes:
 - Keep prompts specific about text placement, typography feel, color usage, and product fidelity.
 - Keep metadata fields out of prompt body unless visually relevant.
 - Do not return prompt deltas as the execution contract. The Gemini MCP receives final prompts only.
+- Each variant must be unique. Do not propose minor differences between variants.
 
 
 # Prompt rules:

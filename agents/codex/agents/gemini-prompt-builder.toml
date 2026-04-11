@@ -20,7 +20,7 @@ Goal:
 - Do not generate images.
 
 Must do:
-1. Call `extract_target_page_facts` for `target_url`.
+1. Call `w` for `target_url`.
 2. Read:
    - `~/.meta-marketing-plugin/brand_dna_copy.yaml`
    - `~/.meta-marketing-plugin/brand_dna_visual.yaml`

@@ -899,6 +899,12 @@ export const CreateAdCreativeSchema = z.object({
 
 export const StructuredAdBuildItemSchema = z.object({
   key: z.string().optional().describe("Stable key for this build item in the result payload"),
+  ad_set_key: z
+    .string()
+    .optional()
+    .describe(
+      "Optional grouping key. Build items with the same ad_set_key reuse one ad set so multiple ads can be created inside it."
+    ),
   account_id: z.string().describe("Meta Ad Account ID"),
   page_id: z.string().describe("Facebook Page ID for the creative"),
   instagram_user_id: z
@@ -1024,7 +1030,7 @@ export const StructuredAdBuildItemSchema = z.object({
     .enum(["ACTIVE", "PAUSED"])
     .optional()
     .default("PAUSED")
-    .describe("Initial status for campaign, ad set, and ad"),
+    .describe("Initial status for campaign, ad set, and ad. Use PAUSED for a draft-like review flow before manual publish."),
   special_ad_categories: z
     .array(z.string())
     .optional()

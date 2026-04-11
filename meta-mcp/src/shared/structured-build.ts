@@ -36,12 +36,29 @@ type CampaignPayload = {
   ads_manager_url?: string;
 };
 
+type AdSetPayload = {
+  ad_set_id: string;
+  ads_manager_url?: string;
+};
+
 type CampaignCacheEntry = {
   payload: CampaignPayload;
   settings: {
     status: string;
     daily_budget: number;
     special_ad_categories: string;
+  };
+};
+
+type AdSetCacheEntry = {
+  payload: AdSetPayload;
+  settings: {
+    status: string;
+    start_time: string;
+    name: string;
+    countries: string;
+    publisher_platforms: string;
+    pixel_id: string;
   };
 };
 
@@ -119,9 +136,35 @@ function buildCampaignCacheKey(build: StructuredAdBuildItemParams) {
   return `${build.account_id}::${build.campaign_name}`;
 }
 
+function normalizeCountries(build: StructuredAdBuildItemParams) {
+  return [...build.countries].sort().join(",");
+}
+
+function normalizePublisherPlatforms(build: StructuredAdBuildItemParams) {
+  const platforms = build.publisher_platforms || ["facebook", "instagram"];
+  return [...platforms].sort().join(",");
+}
+
 function normalizeSpecialAdCategories(build: StructuredAdBuildItemParams) {
   const categories = build.special_ad_categories || ["NONE"];
   return [...categories].sort().join(",");
+}
+
+function buildAdSetCacheKey(build: StructuredAdBuildItemParams) {
+  const adSetIdentity =
+    build.ad_set_key || build.key || build.ad_name || build.creative_name;
+
+  return `${buildCampaignCacheKey(build)}::${adSetIdentity}`;
+}
+
+function validateSingleCampaign(builds: StructuredAdBuildItemParams[]) {
+  const campaignKeys = new Set(builds.map(buildCampaignCacheKey));
+
+  if (campaignKeys.size !== 1) {
+    throw new Error(
+      "run_structured_ad_build supports exactly one campaign per call. Use the same account_id and campaign_name for every build item."
+    );
+  }
 }
 
 function validateCampaignSettings(
@@ -140,6 +183,30 @@ function validateCampaignSettings(
     throw new Error(
       `Build "${build.key || build.campaign_name}" reuses campaign "${build.campaign_name}" with conflicting campaign-level settings. ` +
         "Use matching status, daily_budget_major, and special_ad_categories for all builds that share a campaign."
+    );
+  }
+}
+
+function validateAdSetSettings(
+  build: StructuredAdBuildItemParams,
+  startTime: string,
+  existing: AdSetCacheEntry
+) {
+  const status = build.status || "PAUSED";
+  const countries = normalizeCountries(build);
+  const publisherPlatforms = normalizePublisherPlatforms(build);
+
+  if (
+    existing.settings.status !== status ||
+    existing.settings.start_time !== startTime ||
+    existing.settings.name !== build.ad_set_name ||
+    existing.settings.countries !== countries ||
+    existing.settings.publisher_platforms !== publisherPlatforms ||
+    existing.settings.pixel_id !== build.pixel_id
+  ) {
+    throw new Error(
+      `Build "${build.key || build.ad_name}" reuses ad_set_key "${build.ad_set_key}" with conflicting ad-set settings. ` +
+        "Use matching ad_set_name, status, start_time, countries, publisher_platforms, and pixel_id for all builds that share an ad_set_key."
     );
   }
 }
@@ -192,10 +259,84 @@ async function getOrCreateCampaign(
   };
 }
 
+async function getOrCreateAdSet(
+  metaClient: MetaApiClient,
+  build: StructuredAdBuildItemParams,
+  startTime: string,
+  campaignId: string,
+  adSetCache: Map<string, AdSetCacheEntry>
+) {
+  const cacheKey = buildAdSetCacheKey(build);
+  const cached = adSetCache.get(cacheKey);
+
+  if (cached) {
+    validateAdSetSettings(build, startTime, cached);
+    return {
+      adSet: cached.payload,
+      reused: true,
+    };
+  }
+
+  const status = build.status || "PAUSED";
+  const adSet = parseStepPayload(
+    "create_ad_set_enhanced",
+    await createAdSetEnhancedAction(metaClient, {
+      campaign_id: campaignId,
+      name: build.ad_set_name,
+      optimization_goal: "OFFSITE_CONVERSIONS",
+      billing_event: "IMPRESSIONS",
+      promoted_object: {
+        pixel_id: build.pixel_id,
+        custom_event_type: "PURCHASE",
+      },
+      attribution_spec: [
+        { event_type: "CLICK_THROUGH", window_days: 7 },
+        { event_type: "VIEW_THROUGH", window_days: 1 },
+      ],
+      destination_type: "UNDEFINED",
+      configured_status: status,
+      start_time: startTime,
+      is_dynamic_creative: false,
+      targeting: {
+        geo_locations: {
+          countries: build.countries,
+        },
+        publisher_platforms: build.publisher_platforms,
+        brand_safety_content_filter_levels: ["FACEBOOK_RELAXED"],
+        targeting_automation: {
+          advantage_audience: 1,
+          individual_setting: {
+            age: 1,
+            gender: 1,
+          },
+        },
+      },
+    })
+  ) as AdSetPayload;
+
+  adSetCache.set(cacheKey, {
+    payload: adSet,
+    settings: {
+      status,
+      start_time: startTime,
+      name: build.ad_set_name,
+      countries: normalizeCountries(build),
+      publisher_platforms: normalizePublisherPlatforms(build),
+      pixel_id: build.pixel_id,
+    },
+  });
+
+  return {
+    adSet,
+    reused: false,
+  };
+}
+
 async function runSingleBuild(
   metaClient: MetaApiClient,
   build: StructuredAdBuildItemParams,
-  campaignCache: Map<string, CampaignCacheEntry>
+  campaignCache: Map<string, CampaignCacheEntry>,
+  adSetCache: Map<string, AdSetCacheEntry>
 ) {
   validateBuild(build);
 
@@ -224,40 +365,12 @@ async function runSingleBuild(
     campaignCache
   );
 
-  const adSet = parseStepPayload(
-    "create_ad_set_enhanced",
-    await createAdSetEnhancedAction(metaClient, {
-      campaign_id: campaign.campaign_id,
-      name: build.ad_set_name,
-      optimization_goal: "OFFSITE_CONVERSIONS",
-      billing_event: "IMPRESSIONS",
-      promoted_object: {
-        pixel_id: build.pixel_id,
-        custom_event_type: "PURCHASE",
-      },
-      attribution_spec: [
-        { event_type: "CLICK_THROUGH", window_days: 7 },
-        { event_type: "VIEW_THROUGH", window_days: 1 },
-      ],
-      destination_type: "UNDEFINED",
-      configured_status: status,
-      start_time: startTime,
-      is_dynamic_creative: true,
-      targeting: {
-        geo_locations: {
-          countries: build.countries,
-        },
-        publisher_platforms: build.publisher_platforms,
-        brand_safety_content_filter_levels: ["FACEBOOK_RELAXED"],
-        targeting_automation: {
-          advantage_audience: 1,
-          individual_setting: {
-            age: 1,
-            gender: 1,
-          },
-        },
-      },
-    })
+  const { adSet, reused: adSetReused } = await getOrCreateAdSet(
+    metaClient,
+    build,
+    startTime,
+    campaign.campaign_id,
+    adSetCache
   );
 
   const creative = parseStepPayload(
@@ -313,9 +426,10 @@ async function runSingleBuild(
       optimization_goal: "OFFSITE_CONVERSIONS",
       billing_event: "IMPRESSIONS",
       destination_type: "UNDEFINED",
-      is_dynamic_creative: true,
+      is_dynamic_creative: false,
       description: descriptionText,
       start_time: startTime,
+      status,
     },
     copy_variants: {
       parents: copyVariants.parents,
@@ -329,6 +443,7 @@ async function runSingleBuild(
       campaign_reused: reused,
       ad_set_id: adSet.ad_set_id,
       ad_set_url: adSet.ads_manager_url,
+      ad_set_reused: adSetReused,
       creative_id: creative.creative_id,
       ad_id: ad.ad_id,
       ad_url: ad.ads_manager_url,
@@ -340,13 +455,28 @@ export async function runStructuredAdBuildAction(
   metaClient: MetaApiClient,
   params: RunStructuredAdBuildParams
 ): Promise<MetaToolResult> {
+  try {
+    validateSingleCampaign(params.builds);
+  } catch (error) {
+    return jsonToolResult(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error occurred",
+      },
+      true
+    );
+  }
+
   const builds = [];
   const campaignCache = new Map<string, CampaignCacheEntry>();
+  const adSetCache = new Map<string, AdSetCacheEntry>();
   let hasErrors = false;
 
   for (const build of params.builds) {
     try {
-      builds.push(await runSingleBuild(metaClient, build, campaignCache));
+      builds.push(
+        await runSingleBuild(metaClient, build, campaignCache, adSetCache)
+      );
     } catch (error) {
       hasErrors = true;
       builds.push({
@@ -360,7 +490,10 @@ export async function runStructuredAdBuildAction(
   return jsonToolResult(
     {
       success: !hasErrors,
-      mode: "deterministic_dynamic_creative",
+      mode: "deterministic_asset_feed_campaign",
+      campaign_count: campaignCache.size,
+      ad_set_count: adSetCache.size,
+      ad_count: builds.filter((build) => build.success).length,
       builds,
     },
     hasErrors
