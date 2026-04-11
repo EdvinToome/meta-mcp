@@ -609,7 +609,7 @@ export function registerCampaignTools(
 
   server.tool(
     "run_structured_ad_build",
-    "Run a deterministic full Meta build from one structured payload. This creates one campaign, one or more normal ad sets, and one ad per build item using asset_feed_spec creatives with multiple text variants. Use ad_set_key to place multiple ads into the same ad set.",
+    "Run a deterministic full Meta build from one structured payload. This creates one campaign, one or more normal ad sets, and one flexible ad per build item using creative_asset_groups_spec with multiple text variants. Use ad_set_key to place multiple ads into the same ad set.",
     RunStructuredAdBuildSchema.shape,
     async (params) => runStructuredAdBuildAction(metaClient, params)
   );

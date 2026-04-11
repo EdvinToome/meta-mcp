@@ -5,8 +5,7 @@ import type {
 } from "../types/mcp-tools.js";
 import type { MetaToolResult } from "./meta-v1-actions.js";
 import {
-  createAdAction,
-  createAdCreativeAction,
+  createFlexibleAdAction,
   createAdSetEnhancedAction,
   createCampaignAction,
   uploadCreativeAssetAction,
@@ -119,17 +118,89 @@ function parseStepPayload(step: string, result: MetaToolResult) {
 }
 
 function validateBuild(build: StructuredAdBuildItemParams) {
-  if (build.image_path && build.image_hash) {
+  const hasSingleImagePath = Boolean(build.image_path);
+  const hasSingleImageHash = Boolean(build.image_hash);
+  const hasMultipleImagePaths = Boolean(build.image_paths?.length);
+  const hasMultipleImageHashes = Boolean(build.image_hashes?.length);
+  const imageSources = [
+    hasSingleImagePath,
+    hasSingleImageHash,
+    hasMultipleImagePaths,
+    hasMultipleImageHashes,
+  ].filter(Boolean).length;
+
+  if (imageSources > 1) {
     throw new Error(
-      "Provide either image_path or image_hash for a structured build item, not both."
+      "Provide exactly one image source: image_path, image_hash, image_paths, or image_hashes."
     );
   }
 
-  if (!build.image_path && !build.image_hash) {
+  if (imageSources === 0) {
     throw new Error(
-      "Structured build item requires image_path or image_hash."
+      "Structured build item requires image_path, image_hash, image_paths, or image_hashes."
     );
   }
+}
+
+async function resolveImageHashes(
+  metaClient: MetaApiClient,
+  build: StructuredAdBuildItemParams
+) {
+  if (build.image_hashes?.length) {
+    return {
+      imageHashes: build.image_hashes,
+      uploads: [],
+    };
+  }
+
+  if (build.image_hash) {
+    return {
+      imageHashes: [build.image_hash],
+      uploads: [],
+    };
+  }
+
+  if (build.image_paths?.length) {
+    const uploads = [];
+
+    for (const filePath of build.image_paths) {
+      const upload = parseStepPayload(
+        "upload_creative_asset",
+        await uploadCreativeAssetAction(metaClient, {
+          account_id: build.account_id,
+          file_path: filePath,
+        })
+      );
+      uploads.push({
+        file_path: filePath,
+        image_hash: upload.upload_details.image_hash,
+      });
+    }
+
+    return {
+      imageHashes: uploads.map((upload) => upload.image_hash),
+      uploads,
+    };
+  }
+
+  const upload = parseStepPayload(
+    "upload_creative_asset",
+    await uploadCreativeAssetAction(metaClient, {
+      account_id: build.account_id,
+      file_path: build.image_path!,
+      image_name: build.image_name,
+    })
+  );
+
+  return {
+    imageHashes: [upload.upload_details.image_hash],
+    uploads: [
+      {
+        file_path: build.image_path!,
+        image_hash: upload.upload_details.image_hash,
+      },
+    ],
+  };
 }
 
 function buildCampaignCacheKey(build: StructuredAdBuildItemParams) {
@@ -344,20 +415,7 @@ async function runSingleBuild(
   const descriptionText = buildDescriptionText(build);
   const startTime = build.start_time || buildDefaultStartTime();
   const copyVariants = build.copy_variants;
-  let imageHash = build.image_hash;
-  let upload: Record<string, any> | undefined;
-
-  if (build.image_path) {
-    upload = parseStepPayload(
-      "upload_creative_asset",
-      await uploadCreativeAssetAction(metaClient, {
-        account_id: build.account_id,
-        file_path: build.image_path,
-        image_name: build.image_name,
-      })
-    );
-    imageHash = upload.upload_details.image_hash;
-  }
+  const { imageHashes, uploads } = await resolveImageHashes(metaClient, build);
 
   const { campaign, reused } = await getOrCreateCampaign(
     metaClient,
@@ -373,14 +431,18 @@ async function runSingleBuild(
     adSetCache
   );
 
-  const creative = parseStepPayload(
-    "create_ad_creative",
-    await createAdCreativeAction(metaClient, {
-      account_id: build.account_id,
-      name: build.creative_name,
+  const ad = parseStepPayload(
+    "create_flexible_ad",
+    await createFlexibleAdAction(metaClient, {
+      ad_set_id: adSet.ad_set_id,
+      name: build.ad_name,
+      creative_name: build.creative_name,
       page_id: build.page_id,
       instagram_user_id: build.instagram_user_id,
-      messages: [
+      image_hashes: imageHashes,
+      link_url: build.destination_url,
+      call_to_action_type: build.call_to_action_type,
+      primary_texts: [
         copyVariants.parents.primary_text,
         copyVariants.teachers.primary_text,
         copyVariants.general.primary_text,
@@ -391,19 +453,6 @@ async function runSingleBuild(
         copyVariants.general.headline,
       ],
       descriptions: [descriptionText],
-      image_hash: imageHash,
-      call_to_action_type: build.call_to_action_type,
-      link_url: build.destination_url,
-      enable_standard_enhancements: false,
-    })
-  );
-
-  const ad = parseStepPayload(
-    "create_ad",
-    await createAdAction(metaClient, {
-      ad_set_id: adSet.ad_set_id,
-      name: build.ad_name,
-      creative_id: creative.creative_id,
       status,
     })
   );
@@ -411,14 +460,14 @@ async function runSingleBuild(
   return {
     key: build.key || build.campaign_name,
     success: true,
-    upload: upload
-      ? {
-          file_path: build.image_path,
-          image_hash: imageHash,
-        }
-      : {
-          image_hash: imageHash,
-        },
+    upload:
+      uploads.length > 0
+        ? {
+            images: uploads,
+          }
+        : {
+            image_hashes: imageHashes,
+          },
     defaults_applied: {
       objective: "OUTCOME_SALES",
       bid_strategy: "LOWEST_COST_WITHOUT_CAP",
@@ -426,7 +475,9 @@ async function runSingleBuild(
       optimization_goal: "OFFSITE_CONVERSIONS",
       billing_event: "IMPRESSIONS",
       destination_type: "UNDEFINED",
+      creative_mode: "flexible_ad_format",
       is_dynamic_creative: false,
+      image_count: imageHashes.length,
       description: descriptionText,
       start_time: startTime,
       status,
@@ -444,7 +495,7 @@ async function runSingleBuild(
       ad_set_id: adSet.ad_set_id,
       ad_set_url: adSet.ads_manager_url,
       ad_set_reused: adSetReused,
-      creative_id: creative.creative_id,
+      creative_id: ad.details?.creative_id,
       ad_id: ad.ad_id,
       ad_url: ad.ads_manager_url,
     },
@@ -490,7 +541,7 @@ export async function runStructuredAdBuildAction(
   return jsonToolResult(
     {
       success: !hasErrors,
-      mode: "deterministic_asset_feed_campaign",
+      mode: "deterministic_flexible_ad_campaign",
       campaign_count: campaignCache.size,
       ad_set_count: adSetCache.size,
       ad_count: builds.filter((build) => build.success).length,

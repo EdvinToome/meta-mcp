@@ -705,13 +705,25 @@ export class MetaApiClient {
     );
   }
 
+  async getAd(adId: string): Promise<Ad> {
+    return this.makeRequest<Ad>(
+      `${adId}?fields=id,name,adset_id,campaign_id,status,effective_status,created_time,updated_time,creative`
+    );
+  }
+
   // Ad Management
   async createAd(
     adSetId: string,
     adData: {
       name: string;
       adset_id: string;
-      creative: { creative_id: string };
+      creative:
+        | { creative_id: string }
+        | {
+            name: string;
+            object_story_spec: Record<string, unknown>;
+          };
+      creative_asset_groups_spec?: Record<string, unknown>;
       status?: string;
     }
   ): Promise<Ad> {

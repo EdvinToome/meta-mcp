@@ -81,6 +81,26 @@ type PromotedObject = {
   custom_event_type?: string;
 };
 
+type FlexibleAdText = {
+  text: string;
+  text_type: "primary_text" | "headline" | "description";
+};
+
+type CreateFlexibleAdParams = {
+  ad_set_id: string;
+  name: string;
+  creative_name: string;
+  page_id: string;
+  instagram_user_id?: string;
+  image_hashes: string[];
+  link_url: string;
+  call_to_action_type: string;
+  primary_texts: string[];
+  headlines: string[];
+  descriptions: string[];
+  status?: string;
+};
+
 type AdSetPayload = {
   name: string;
   optimization_goal: string;
@@ -196,6 +216,20 @@ function buildCreativeApiError(errorData: Record<string, unknown>) {
 
 function buildAdApiError(error: Error) {
   if (error instanceof MetaValidationError && error.errorCode === 100) {
+    if (error.errorSubcode === 2061015) {
+      return (
+        "Error creating ad: flexible ad format requires creative.object_story_spec.link_data.link. " +
+        "Set the destination link in the base creative spec and in the group CTA."
+      );
+    }
+
+    if (error.errorSubcode === 3858355) {
+      return (
+        "Error creating ad: the first flexible asset group image or video must match the base creative spec. " +
+        "Use the same image_hash or video_id in creative.object_story_spec and in the first creative_asset_groups_spec group."
+      );
+    }
+
     if (error.errorSubcode === 1885998) {
       return (
         "Error creating ad: this creative uses multiple text variants, so Meta treats it as a dynamic creative. " +
@@ -1125,6 +1159,103 @@ export async function createAdAction(
         account_id: campaign.account_id,
         creative_id,
         status: ad.status ?? (status || "PAUSED"),
+        ads_manager_url: adsManagerUrl,
+      },
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      return errorResult(buildAdApiError(error));
+    }
+
+    return errorResult("Error creating ad: Unknown error occurred");
+  }
+}
+
+export async function createFlexibleAdAction(
+  metaClient: MetaApiClient,
+  params: CreateFlexibleAdParams
+): Promise<MetaToolResult> {
+  const {
+    ad_set_id,
+    name,
+    creative_name,
+    page_id,
+    instagram_user_id,
+    image_hashes,
+    link_url,
+    call_to_action_type,
+    primary_texts,
+    headlines,
+    descriptions,
+    status,
+  } = params;
+
+  const texts: FlexibleAdText[] = [
+    ...primary_texts.map((text) => ({ text, text_type: "primary_text" as const })),
+    ...headlines.map((text) => ({ text, text_type: "headline" as const })),
+    ...descriptions.map((text) => ({ text, text_type: "description" as const })),
+  ];
+  const [baseImageHash] = image_hashes;
+
+  try {
+    const adSet = await metaClient.getAdSet(ad_set_id);
+    const campaign = await metaClient.getCampaign(adSet.campaign_id);
+    const adData = {
+      name,
+      adset_id: ad_set_id,
+      creative: {
+        name: creative_name,
+        object_story_spec: {
+          page_id,
+          ...(instagram_user_id ? { instagram_user_id } : {}),
+          link_data: {
+            link: link_url,
+            image_hash: baseImageHash,
+            call_to_action: {
+              type: call_to_action_type,
+              value: { link: link_url },
+            },
+          },
+        },
+      },
+      creative_asset_groups_spec: {
+        groups: [
+          {
+            images: image_hashes.map((hash) => ({ hash })),
+            texts,
+            call_to_action: {
+              type: call_to_action_type,
+              value: { link: link_url },
+            },
+          },
+        ],
+      },
+      status: status || "PAUSED",
+    };
+
+    const created = await metaClient.createAd(ad_set_id, adData);
+    const ad = await metaClient.getAd(created.id);
+    const adsManagerUrl = buildAdAdsManagerUrl(
+      campaign.account_id,
+      campaign.id,
+      ad_set_id,
+      ad.id
+    );
+
+    return jsonResult({
+      success: true,
+      ad_id: ad.id,
+      message: `Ad "${name}" created successfully with flexible ad format`,
+      ads_manager_url: adsManagerUrl,
+      details: {
+        id: ad.id,
+        name: ad.name ?? name,
+        ad_set_id,
+        campaign_id: campaign.id,
+        account_id: campaign.account_id,
+        creative_id: ad.creative?.id,
+        status: ad.status ?? (status || "PAUSED"),
+        creative_mode: "flexible_ad_format",
         ads_manager_url: adsManagerUrl,
       },
     });

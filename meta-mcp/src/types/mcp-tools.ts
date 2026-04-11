@@ -936,10 +936,20 @@ export const StructuredAdBuildItemSchema = z.object({
     .string()
     .optional()
     .describe("Absolute local file path for the image to upload"),
+  image_paths: z
+    .array(z.string())
+    .min(1)
+    .optional()
+    .describe("Absolute local file paths for multiple images to upload into one flexible ad"),
   image_hash: z
     .string()
     .optional()
     .describe("Existing Meta image hash to reuse instead of uploading"),
+  image_hashes: z
+    .array(z.string())
+    .min(1)
+    .optional()
+    .describe("Existing Meta image hashes to reuse inside one flexible ad"),
   image_name: z.string().optional().describe("Optional image library name"),
   language: z
     .string()
@@ -1030,7 +1040,7 @@ export const StructuredAdBuildItemSchema = z.object({
     .enum(["ACTIVE", "PAUSED"])
     .optional()
     .default("PAUSED")
-    .describe("Initial status for campaign, ad set, and ad. Use PAUSED for a draft-like review flow before manual publish."),
+    .describe("Initial status for campaign, ad set, and ad. Use PAUSED for review in Ads Manager before activation."),
   special_ad_categories: z
     .array(z.string())
     .optional()

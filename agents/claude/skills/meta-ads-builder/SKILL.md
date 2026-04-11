@@ -13,8 +13,8 @@ Workflow:
 1. Resolve `site_profile` from project profiles.
 2. Resolve campaign-level inputs and creative-level inputs:
    - campaign-level: budget, status, CTA, countries, page/pixel identity
-   - creative-level: image, `target_url`, `creative_description`
-   - If `image_path` or `image_hash` is provided, continue directly to publish.
+   - creative-level: image or closely related image set, `target_url`, `creative_description`
+   - If `image_path`, `image_hash`, `image_paths`, or `image_hashes` is provided, continue directly to publish.
    - Do not call publish flow before explicit candidate approval.
 3. Build campaign, ad set and ad names with this required format:
    - `Brand | Country | Date | Description`
@@ -50,7 +50,7 @@ Workflow:
    - Do not call `run_structured_ad_build` until the user approves the structure.
 6. Build `run_structured_ad_build.builds` with one build item per creative:
    - pass `builds` as a real JSON array, not a stringified JSON value
-   - each item must include that creative's own `image_path`/`image_hash`, `target_url`, and `copy_variants`
+   - each item must include that creative's own `image_path`/`image_hash` or `image_paths`/`image_hashes`, `target_url`, and `copy_variants`
    - keep the same `campaign_name` across every item
    - use `ad_set_key` to group multiple ads into one ad set
    - omit `ad_set_key` when a creative should get its own ad set
@@ -68,6 +68,7 @@ Workflow:
 Rules:
 - Use Meta MCP tools only.
 - Do not invent claims or IDs.
-- `run_structured_ad_build` now creates normal ad sets, not classic dynamic-creative ad sets.
+- `run_structured_ad_build` creates normal ad sets and flexible ads with `creative_asset_groups_spec`.
+- Use multiple images inside one flexible ad only when they are close variants of the same offer and angle.
 - Multiple ads can share one ad set when they use the same `ad_set_key`.
-- Meta API does not expose a real draft status here. Use `PAUSED` as the default review state unless the user explicitly wants `ACTIVE`.
+- Meta API does not expose a real draft status here. Use `PAUSED` as the review state unless the user explicitly wants `ACTIVE`.
