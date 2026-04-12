@@ -1084,7 +1084,7 @@ export const CreateImageSchema = z.object({
     .default(1)
     .describe("Number of images to generate"),
   aspect_ratio: z
-    .enum(["1:1", "4:5", "9:16", "16:9"])
+    .enum(["1:1", "3:4", "4:3", "9:16", "16:9"])
     .optional()
     .default("1:1")
     .describe("Aspect ratio for generated images"),
